@@ -2240,108 +2240,140 @@ function clearBill(){
   updateBillNo(); renderBillItems();
 }
 
-// ===== 58mm THERMAL PRINT — VYAPAR STYLE =====
-function thermalPrint(invData){
-  const s=S.settings;
-  let items,t,customer,custPhone,billNum,dateStr,payment,note;
+// ===== BILL DATA HELPER =====
+function getBillData(invData){
+  const s = S.settings;
+  let items, t, customer, custPhone, billNum, dateStr, payment, note, mobile;
   if(invData){
-    items=invData.items||[];
-    t={sub:invData.subtotal,disc:invData.discount_pct,discAmt:invData.discount,gst:invData.gst,grand:invData.total,gstRate:invData.gst_rate||18};
-    customer=invData.customer_name; billNum=invData.bill_number;
-    dateStr=invData.bill_date; payment=invData.payment_mode; note=invData.note;
-    const c=invData.customer_id?S.customers.find(x=>x.id===invData.customer_id):null;
-    custPhone=c?c.phone:'';
+    items = invData.items||[];
+    t = {sub:invData.subtotal, disc:invData.discount_pct, discAmt:invData.discount, gst:invData.gst||0, grand:invData.total, gstRate:invData.gst_rate||0};
+    customer = invData.customer_name; billNum = invData.bill_number;
+    dateStr = invData.bill_date; payment = invData.payment_mode; note = invData.note||'';
+    const c = invData.customer_id ? S.customers.find(x=>x.id===invData.customer_id) : null;
+    custPhone = c ? c.phone : (invData.phone||'');
+    mobile = custPhone;
   } else {
-    if(!S.billItems.length){ toast('Add items first!','error'); return; }
-    items=S.billItems; t=getTotals();
-    const mode=S.custMode||'existing';
-    let cust=null;
+    if(!S.billItems.length){ toast('Add items first!','error'); return null; }
+    items = S.billItems; t = getTotals();
+    const mode = S.custMode||'existing';
+    let cust = null;
     if(mode==='existing'){ const cid=document.getElementById('billCust').value; if(cid) cust=S.customers.find(c=>c.id===parseInt(cid)); }
     else if(mode==='new'&&S.quickCust) cust=S.quickCust;
-    customer=cust?cust.name:'Walk-in'; custPhone=cust?cust.phone:'';
-    billNum=parseInt(S.settings.bill_counter)||1;
-    dateStr=new Date().toLocaleDateString('en-IN');
-    payment=getActivePayMode(); note=document.getElementById('billNote').value;
+    customer = cust ? cust.name : 'Walk-in';
+    custPhone = cust ? cust.phone : '';
+    mobile = custPhone;
+    billNum = parseInt(S.settings.bill_counter)||1;
+    dateStr = new Date().toLocaleDateString('en-IN');
+    payment = getActivePayMode();
+    note = document.getElementById('billNote').value||'';
   }
+  return {items, t, customer, custPhone, mobile, billNum, dateStr, payment, note};
+}
 
-  const pm={cash:'Cash',upi:'UPI',card:'Card',credit:'Credit'};
-  const billStr=String(billNum).padStart(4,'0');
-  const terms = s.terms || '(1) No Cash Refund &amp; No buy-back (2) Exchange within 7 days from the available stock only, If found any manufacturing defect (3) 3 Month warranty on all Silver Jewelry that covers any material defects or workmanship under normal use. (4) No Guarantee or Warranty on Imitation Jewelry (5) Silver Jewelry Exchange Price 40% of Purchasing Price. Only Exchange No Cash Return or Refund. (6) Small stone fixing is free for lifetime (7) Silver jewelry cleaning is free for lifetime Happy to help you always.... Visit again.';
+// ===== BUILD BILL HTML (used for both print & WhatsApp image) =====
+function buildBillHTML(d, forImage=false){
+  const s = S.settings;
+  const pm = {cash:'Cash',upi:'UPI',card:'Card',credit:'Credit'};
+  const billStr = String(d.billNum).padStart(4,'0');
+  const shopInitial = (s.shop_name||'E')[0].toUpperCase();
+  const terms = (s.terms||'').replace(/&amp;/g,'&');
+  const totalQty = d.items.reduce((sum,i)=>sum+parseInt(i.qty||1),0);
+  const width = forImage ? '340px' : '54mm';
+  const fBase = forImage ? '12px' : '9px';
+  const fSm   = forImage ? '11px' : '8px';
+  const fXs   = forImage ? '10px' : '7.5px';
+  const fLg   = forImage ? '15px' : '11px';
+  const fXl   = forImage ? '18px' : '13px';
 
-  // Vyapar exact format
-  let html=`
-  <div style="font-weight:bold;font-size:13px">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
-  ${s.address ? `<div style="font-size:9px;line-height:1.5;margin-top:1px">${s.address.replace(/\n/g,'<br>')}</div>` : ''}
-  ${s.phone   ? `<div style="font-size:9px">Ph: ${s.phone}</div>` : ''}
-  ${s.gst_number ? `<div style="font-size:9px">GSTIN: ${s.gst_number}</div>` : ''}
-  ${s.email   ? `<div style="font-size:9px">${s.email}</div>` : ''}
-  <div class="tp-solid" style="margin:5px 0"></div>
-
-  <div style="display:flex;justify-content:space-between;align-items:flex-start">
-    <div>
-      <div style="font-size:10px;color:#555">Bill To:</div>
-      <div style="font-weight:bold;font-size:12px">${customer}</div>
-      ${custPhone ? `<div style="font-size:11px">Ph: ${custPhone}</div>` : ''}
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:10px;color:#444">Bill No:</div>
-      <div style="font-weight:bold;font-size:13px">#${billStr}</div>
-      <div style="font-size:10px;color:#444;margin-top:3px">Date:</div>
-      <div style="font-size:11px">${dateStr}</div>
-    </div>
-  </div>
-
-  <div class="tp-solid" style="margin:5px 0"></div>
-
-  <table style="width:100%;border-collapse:collapse;font-size:11px">
-    <thead>
-      <tr style="background:#f0f0f0;border-bottom:2px solid #000">
-        <th style="text-align:left;padding:4px 2px">SR</th>
-        <th style="text-align:left;padding:4px 2px">Name</th>
-        <th style="text-align:center;padding:4px 2px">Qty</th>
-        <th style="text-align:right;padding:4px 2px">Price</th>
-        <th style="text-align:right;padding:4px 2px">Amt</th>
-      </tr>
-    </thead>
-    <tbody>`;
-
-  items.forEach((item,i)=>{
-    html+=`<tr style="border-bottom:1px solid #ddd">
-      <td style="padding:5px 2px;vertical-align:top">${i+1}</td>
-      <td style="padding:5px 2px">${item.name}</td>
-      <td style="text-align:center;padding:5px 2px">${item.qty}</td>
-      <td style="text-align:right;padding:5px 2px">${parseFloat(item.price).toFixed(0)}</td>
-      <td style="text-align:right;padding:5px 2px">${parseFloat(item.total).toFixed(0)}</td>
+  let rows = '';
+  d.items.forEach((item,i)=>{
+    const bg = i%2===0 ? '#fff' : '#f9f9f9';
+    rows += `<tr style="background:${bg}">
+      <td style="padding:4px 3px;font-size:${fBase};border-bottom:1px solid #eee;vertical-align:top">${i+1}</td>
+      <td style="padding:4px 3px;font-size:${fBase};border-bottom:1px solid #eee">${item.name}</td>
+      <td style="padding:4px 3px;font-size:${fBase};border-bottom:1px solid #eee;text-align:center">${item.qty}Pcs</td>
+      <td style="padding:4px 3px;font-size:${fBase};border-bottom:1px solid #eee;text-align:right">${parseFloat(item.price).toFixed(0)}</td>
+      <td style="padding:4px 3px;font-size:${fBase};border-bottom:1px solid #eee;text-align:right;font-weight:600">${parseFloat(item.total).toFixed(0)}</td>
     </tr>`;
   });
 
-  const totalQty = items.reduce((s,i)=>s+parseInt(i.qty||1),0);
-  html+=`<tr style="border-top:2px solid #000;background:#f0f0f0">
-    <td colspan="2" style="padding:4px 2px;text-align:right;font-weight:bold">Items: ${items.length}</td>
-    <td style="text-align:center;padding:4px 2px;font-weight:bold">${totalQty}</td>
-    <td></td>
-    <td style="text-align:right;padding:4px 2px;font-weight:bold">${parseFloat(t.sub).toFixed(0)}</td>
-  </tr>`;
+  return `<div style="width:${width};background:#fff;color:#000;font-family:'Arial',sans-serif;padding:${forImage?'14px':'3mm'};box-sizing:border-box">
 
-  html+=`</tbody></table>
-  <div class="tp-solid" style="margin:5px 0"></div>
+    <!-- CYAN HEADER -->
+    <div style="background:#29b6d6;padding:${forImage?'10px 14px':'4px 5px'};margin:${forImage?'-14px -14px 10px':'-3mm -3mm 4px'};display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:${fLg};font-weight:800;color:#fff;letter-spacing:0.3px">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
+        ${s.address?`<div style="font-size:${fXs};color:rgba(255,255,255,0.9);margin-top:2px;line-height:1.5">${s.address.replace(/\n/g,'<br>')}</div>`:''}
+        ${s.email?`<div style="font-size:${fXs};color:rgba(255,255,255,0.85);margin-top:1px">${s.email}</div>`:''}
+        ${s.phone?`<div style="font-size:${fXs};color:rgba(255,255,255,0.85)">Ph: ${s.phone}</div>`:''}
+      </div>
+      <div style="width:${forImage?'42px':'16px'};height:${forImage?'42px':'16px'};border-radius:50%;background:#555;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="font-size:${forImage?'20px':'9px'};font-weight:700;color:#fff">${shopInitial}</span>
+      </div>
+    </div>
 
-  <div style="font-size:11px">
-    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:3px 0"><span>Subtotal</span><span>${parseFloat(t.sub).toFixed(0)}</span></div>`:''}
-    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:3px 0"><span>Discount(${t.disc}%)</span><span>-${parseFloat(t.discAmt).toFixed(0)}</span></div>`:''}
-    ${parseFloat(t.gst)>0?`<div style="display:flex;justify-content:space-between;margin:3px 0"><span>GST(${Math.round(t.gstRate)}%)</span><span>${parseFloat(t.gst).toFixed(0)}</span></div>`:''}
-    <div class="tp-solid" style="margin:4px 0"></div>
-    <div style="display:flex;justify-content:space-between;margin:3px 0;font-weight:bold;font-size:13px"><span>TOTAL</span><span>Rs.${parseFloat(t.grand).toFixed(0)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin:3px 0"><span>Payment</span><span>${S.payMode||'Cash'}</span></div>
-    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:3px 0;font-weight:bold"><span>You Saved</span><span>Rs.${parseFloat(t.discAmt).toFixed(0)}</span></div>`:''}
-  </div>
+    <!-- BILL TO + REF -->
+    <div style="display:flex;justify-content:space-between;margin-bottom:${forImage?'10px':'3px'};padding-bottom:${forImage?'8px':'3px'};border-bottom:1px solid #e0e0e0">
+      <div>
+        <div style="font-size:${fSm};color:#29b6d6;font-weight:600">Bill To:</div>
+        <div style="font-size:${fLg};font-weight:700;margin-top:1px">${d.customer||'Walk-in'}</div>
+        ${d.custPhone?`<div style="font-size:${fSm};color:#333;margin-top:1px">📞 ${d.custPhone}</div>`:''}
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:${fSm};color:#29b6d6;font-weight:600">Ref No:</div>
+        <div style="font-size:${fXl};font-weight:700">${billStr}</div>
+        <div style="font-size:${fSm};color:#29b6d6;font-weight:600;margin-top:3px">Date of Issue</div>
+        <div style="font-size:${fSm};font-weight:600">${d.dateStr||''}</div>
+        ${d.mobile?`<div style="font-size:${fSm};color:#29b6d6;font-weight:600;margin-top:2px">MOBILE NO.</div><div style="font-size:${fSm};font-weight:600">${d.mobile}</div>`:''}
+      </div>
+    </div>
 
-  ${note?`<div class="tp-solid" style="margin:4px 0"></div><div style="font-size:10px">Note: ${note}</div>`:''}
-  <div class="tp-solid" style="margin:5px 0"></div>
-  <div style="font-size:9px;line-height:1.7;color:#111">${terms}</div>
-  <div style="height:8mm"></div>`;
+    <!-- ITEMS TABLE -->
+    <table style="width:100%;border-collapse:collapse;margin-bottom:${forImage?'8px':'3px'}">
+      <thead>
+        <tr style="border-bottom:2px solid #000">
+          <th style="font-size:${fSm};padding:3px 2px;text-align:left;font-weight:700">SR</th>
+          <th style="font-size:${fSm};padding:3px 2px;text-align:left;font-weight:700">Name</th>
+          <th style="font-size:${fSm};padding:3px 2px;text-align:center;font-weight:700">Qty</th>
+          <th style="font-size:${fSm};padding:3px 2px;text-align:right;font-weight:700">Price</th>
+          <th style="font-size:${fSm};padding:3px 2px;text-align:right;font-weight:700">Amount</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr style="border-top:2px solid #000">
+          <td colspan="2" style="padding:3px 2px;font-size:${fSm};font-weight:700;text-align:right">Total</td>
+          <td style="padding:3px 2px;font-size:${fSm};font-weight:700;text-align:center">${totalQty}</td>
+          <td></td>
+          <td style="padding:3px 2px;font-size:${fSm};font-weight:700;text-align:right">${parseFloat(d.t.sub).toFixed(0)}</td>
+        </tr>
+      </tfoot>
+    </table>
 
-  document.getElementById('thermalPrint').innerHTML=html;
+    <!-- TOTALS -->
+    <div style="border-top:1px solid #ddd;padding-top:${forImage?'6px':'3px'}">
+      ${d.t.disc>0?`<div style="display:flex;justify-content:space-between;font-size:${fSm};margin:2px 0"><span>Subtotal</span><span>${parseFloat(d.t.sub).toFixed(0)}</span></div>`:''}
+      ${d.t.disc>0?`<div style="display:flex;justify-content:space-between;font-size:${fSm};margin:2px 0"><span>Discount(${d.t.disc}%)</span><span>-${parseFloat(d.t.discAmt).toFixed(0)}</span></div>`:''}
+      ${parseFloat(d.t.gst)>0?`<div style="display:flex;justify-content:space-between;font-size:${fSm};margin:2px 0"><span>GST(${Math.round(d.t.gstRate)}%)</span><span>${parseFloat(d.t.gst).toFixed(0)}</span></div>`:''}
+      <div style="display:flex;justify-content:space-between;font-size:${fBase};font-weight:700;margin:3px 0;border-top:1px solid #ddd;padding-top:3px"><span>Total</span><span>${parseFloat(d.t.grand).toFixed(0)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:${fSm};margin:2px 0"><span>Received</span><span>${parseFloat(d.t.grand).toFixed(0)}</span></div>
+      ${d.t.disc>0?`<div style="display:flex;justify-content:space-between;font-size:${fBase};font-weight:700;margin:3px 0;color:#000"><span>You Saved</span><span>${parseFloat(d.t.discAmt).toFixed(1)}</span></div>`:''}
+    </div>
+
+    ${d.note?`<div style="border-top:1px dashed #ccc;margin-top:4px;padding-top:3px;font-size:${fXs}">Note: ${d.note}</div>`:''}
+
+    <!-- TERMS -->
+    ${terms?`<div style="border-top:1px solid #ddd;margin-top:${forImage?'8px':'3px'};padding-top:${forImage?'6px':'3px'};font-size:${fXs};line-height:1.6;color:#333">${terms}</div>`:''}
+
+    <div style="height:${forImage?'10px':'5mm'}"></div>
+  </div>`;
+}
+
+// ===== 58mm THERMAL PRINT =====
+function thermalPrint(invData){
+  const d = getBillData(invData);
+  if(!d) return;
+  document.getElementById('thermalPrint').innerHTML = buildBillHTML(d, false);
   window.print();
 }
 
@@ -4394,39 +4426,80 @@ function closeAfterSave(){
 }
 
 function vbShareImage(inv){
-  thermalPrint(inv);
-  setTimeout(()=>{
-    const el = document.getElementById('thermalPrint');
-    if(!el){ toast('Print section not found','error'); return; }
-    el.style.display='block';
-    if(typeof html2canvas !== 'undefined'){
-      html2canvas(el,{scale:3,backgroundColor:'#fff'}).then(canvas=>{
-        el.style.display='none';
-        canvas.toBlob(blob=>{
-          if(!blob){ toast('Image banavi shakay nahi','error'); return; }
-          const file = new File([blob],'bill.png',{type:'image/png'});
-          if(navigator.canShare && navigator.canShare({files:[file]})){
-            navigator.share({files:[file],title:'Bill'}).catch(()=>{});
-          } else {
-            const a=document.createElement('a');
-            a.href=URL.createObjectURL(blob);
-            a.download='bill.png';
+  const d = getBillData(inv);
+  if(!d) return;
+  // Temporary div for image generation
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff';
+  wrap.innerHTML = buildBillHTML(d, true);
+  document.body.appendChild(wrap);
+  if(typeof html2canvas !== 'undefined'){
+    html2canvas(wrap, {scale:2, backgroundColor:'#fff', useCORS:true}).then(canvas=>{
+      document.body.removeChild(wrap);
+      canvas.toBlob(blob=>{
+        if(!blob){ toast('Image banavi shakay nahi','error'); return; }
+        const file = new File([blob], 'bill-'+String(d.billNum).padStart(4,'0')+'.png', {type:'image/png'});
+        if(navigator.canShare && navigator.canShare({files:[file]})){
+          navigator.share({files:[file], title:'Bill #'+String(d.billNum).padStart(4,'0')}).catch(()=>{
+            // Share cancelled - download instead
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = file.name;
             a.click();
-          }
-        },'image/png');
-      }).catch(()=>{ el.style.display='none'; toast('Share nathi thai','error'); });
-    } else {
-      el.style.display='none';
-      toast('html2canvas load nathi thayo','error');
-    }
-  }, 200);
+          });
+        } else {
+          // Desktop - download
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = file.name;
+          a.click();
+          toast('Bill image download thayi!','success');
+        }
+      }, 'image/png');
+    }).catch(()=>{ document.body.removeChild(wrap); toast('Share nathi thai','error'); });
+  } else {
+    document.body.removeChild(wrap);
+    toast('html2canvas load nathi thayo','error');
+  }
 }
 
 function vbWhatsApp(inv, phone){
-  const billStr = String(inv.bill_number||'').padStart(4,'0');
-  const s = S.settings;
-  const items = (inv.items||[]).map(i=>`  • ${i.name} x${i.qty||1} = ₹${i.total||i.price||0}`).join('\n');
-  const msg = `*${s.shop_name||'Shop'}*\nBill #${billStr} | ${inv.bill_date||''}\n\nCustomer: ${inv.customer_name||'Walk-in'}\n\nItems:\n${items}\n\nTotal: *₹${inv.total||0}*\nPayment: ${inv.payment_mode||'Cash'}\n\n${s.thank_you||'Thank you! Visit again.'}`;
+  const d = getBillData(inv);
+  if(!d) return;
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff';
+  wrap.innerHTML = buildBillHTML(d, true);
+  document.body.appendChild(wrap);
+  toast('Bill image banavi raha chhe...','success');
+  if(typeof html2canvas !== 'undefined'){
+    html2canvas(wrap, {scale:2, backgroundColor:'#fff', useCORS:true}).then(canvas=>{
+      document.body.removeChild(wrap);
+      canvas.toBlob(blob=>{
+        if(!blob){ _fallbackWAText(d, phone); return; }
+        const file = new File([blob], 'bill.png', {type:'image/png'});
+        const cleanPhone = phone.replace(/\D/g,'');
+        const withCode = cleanPhone.startsWith('91') && cleanPhone.length===12 ? cleanPhone : '91'+cleanPhone.slice(-10);
+        const isAndroid = /android/i.test(navigator.userAgent);
+        // Try image share first
+        if(navigator.canShare && navigator.canShare({files:[file]})){
+          navigator.share({files:[file], title:'Bill', text:withCode ? 'To: +'+withCode : ''}).catch(()=>{
+            // Fallback: open WA with text
+            _fallbackWAText(d, phone);
+          });
+        } else {
+          // Desktop: open web.whatsapp.com with bill text
+          _fallbackWAText(d, phone);
+        }
+      }, 'image/png');
+    }).catch(()=>{ document.body.removeChild(wrap); _fallbackWAText(d, phone); });
+  } else {
+    document.body.removeChild(wrap);
+    _fallbackWAText(d, phone);
+  }
+}
+
+function _fallbackWAText(d, phone){
+  const msg = buildVyaparMsg(d.items, d.t, d.customer, d.custPhone, d.billNum, d.dateStr, d.payment, d.note);
   sendToWA(phone, msg);
 }
 
