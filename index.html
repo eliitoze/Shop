@@ -817,6 +817,12 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
   <div style="font-size:12px;color:var(--muted)" id="loadingMsg">Connecting to cloud...</div>
 </div>
 
+<!-- DEBUG: Visible error box -->
+<div id="debugBox" style="display:none;position:fixed;bottom:80px;left:10px;right:10px;background:#1a0000;border:1px solid #f87171;border-radius:8px;padding:10px;font-size:11px;color:#f87171;z-index:9999;max-height:150px;overflow-y:auto;font-family:monospace">
+  <div style="font-weight:bold;margin-bottom:4px">⚠️ Connection Error:</div>
+  <div id="debugMsg"></div>
+</div>
+
 <!-- SIDEBAR -->
 <div id="sideOverlay" onclick="closeSidebar()"></div>
 <div class="sidebar" id="sidebar">
@@ -1419,6 +1425,13 @@ const api = async (endpoint, method='GET', body=null, extraHeaders={}) => {
     return txt ? JSON.parse(txt) : [];
   } catch(err) {
     console.error('API fetch failed:', endpoint, err.message);
+    // Show on screen for mobile debug
+    const db = document.getElementById('debugBox');
+    const dm = document.getElementById('debugMsg');
+    if(db && dm){
+      db.style.display = 'block';
+      dm.textContent = endpoint + ': ' + err.message;
+    }
     throw err;
   }
 };
