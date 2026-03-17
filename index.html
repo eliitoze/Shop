@@ -2377,81 +2377,90 @@ function thermalPrint(invData){
   window.print();
 }
 
-// ===== VYAPAR-STYLE WHATSAPP MESSAGE =====
+// ===== WHATSAPP MESSAGE — PHOTO LAYOUT =====
 function buildVyaparMsg(items, t, customer, custPhone, billNum, dateStr, payment, note){
   const s = S.settings;
-  const pm = {cash:'Cash',upi:'UPI',card:'Card',credit:'Credit'};
+  const pm = {cash:'Cash', upi:'UPI', card:'Card', credit:'Credit'};
   const billStr = String(billNum).padStart(4,'0');
-  const line  = '--------------------------------';
-  const dline = '================================';
+  const bar  = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+  const thin = '─────────────────────────────────';
+
+  // pad helper: left-align with spaces
+  function padR(str, len){ str=String(str); return str.length>=len ? str : str+' '.repeat(len-str.length); }
+  function padL(str, len){ str=String(str); return str.length>=len ? str : ' '.repeat(len-str.length)+str; }
 
   let msg = '';
 
-  // ── Shop Header ──
+  // ── SHOP HEADER ──
   msg += '*' + (s.shop_name||'ELIITOZE JEWELZ').toUpperCase() + '*\n';
-  if(s.address) msg += s.address + '\n';
+  if(s.address) msg += s.address.replace(/\n/g,', ') + '\n';
+  if(s.email)   msg += s.email + '\n';
   if(s.phone)   msg += 'Ph: ' + s.phone + '\n';
   if(s.gst_number) msg += 'GSTIN: ' + s.gst_number + '\n';
-  msg += line + '\n';
+  msg += bar + '\n';
 
-  // ── Bill Info ──
-  msg += '📋 *Bill To:* ' + customer + '\n';
-  if(custPhone) msg += '📱 ' + custPhone + '\n';
-  msg += '🔖 *Ref No:* ' + billStr + '\n';
-  msg += '📅 *Date:* ' + dateStr + '\n';
-  msg += '💳 *Payment:* ' + (pm[payment]||payment) + '\n';
-  msg += line + '\n';
+  // ── BILL TO / REF NO (2 column) ──
+  msg += '*Bill To:*' + '                  ' + '*Ref No:*\n';
+  msg += '*' + customer + '*' + '                  ' + '*' + billStr + '*\n';
+  if(custPhone) msg += '📞 ' + custPhone + '\n';
+  msg += '\n';
+  msg += 'Date of Issue:  *' + dateStr + '*\n';
+  if(custPhone) msg += 'Mobile No.:  *' + custPhone + '*\n';
+  msg += bar + '\n';
 
-  // ── Items — Vyapar style: each item on own block ──
+  // ── ITEMS TABLE HEADER ──
+  msg += '*SR  Name                  Qty   Price  Amt*\n';
+  msg += thin + '\n';
+
+  // ── ITEMS ──
+  let totalQty = 0;
   items.forEach((item, i) => {
-    const name = item.name;
-    const qty  = item.qty + ' Pcs';
-    const rate = '₹' + parseFloat(item.price).toFixed(0);
-    const amt  = '₹' + parseFloat(item.total).toFixed(0);
-    msg += '*' + (i+1) + '. ' + name + '*\n';
-    msg += '   ' + qty + '  ×  ' + rate + '  =  *' + amt + '*\n';
+    const qty = parseInt(item.qty)||1;
+    totalQty += qty;
+    const sr    = padR(String(i+1), 4);
+    const name  = padR(item.name, 22);
+    const qtyS  = padR(qty+'Pcs', 6);
+    const price = padL(parseFloat(item.price).toFixed(0), 6);
+    const amt   = padL(parseFloat(item.total).toFixed(0), 6);
+    msg += sr + name + qtyS + price + '  ' + amt + '\n';
   });
 
-  msg += line + '\n';
+  msg += thin + '\n';
 
-  // ── Totals ──
-  const totalQty = items.reduce((s,i)=>s+parseInt(i.qty||1),0);
-  msg += 'Total Items: *' + totalQty + ' Pcs*\n';
+  // ── TOTAL ROW (like photo) ──
+  const totalLabel = padR('Total', 26);
+  const totalQtyS  = padR(String(totalQty), 6);
+  const totalAmt   = padL(parseFloat(t.sub).toFixed(0), 6);
+  msg += '*' + totalLabel + totalQtyS + '       ' + totalAmt + '*\n';
+  msg += bar + '\n';
 
-  if(parseFloat(t.sub) !== parseFloat(t.grand)){
-    msg += 'Subtotal:  ₹' + parseFloat(t.sub).toFixed(0) + '\n';
-  }
+  // ── TOTALS SECTION ──
   if(t.disc > 0){
-    msg += 'Discount (' + t.disc + '%):  -₹' + parseFloat(t.discAmt).toFixed(0) + '\n';
+    msg += padR('Subtotal', 24) + padL(parseFloat(t.sub).toFixed(0), 8) + '\n';
+    msg += padR('Discount('+t.disc+'%)', 24) + padL('-'+parseFloat(t.discAmt).toFixed(0), 8) + '\n';
   }
   if(parseFloat(t.gst)>0){
-    msg += 'GST (' + Math.round(t.gstRate) + '%):  ₹' + parseFloat(t.gst).toFixed(0) + '\n';
+    msg += padR('GST('+Math.round(t.gstRate)+'%)', 24) + padL(parseFloat(t.gst).toFixed(0), 8) + '\n';
   }
-
-  msg += dline + '\n';
-  msg += '💰 *Total:  ₹' + parseFloat(t.grand).toFixed(0) + '*\n';
-  msg += '✅ Received:  ₹' + parseFloat(t.grand).toFixed(0) + '\n';
-
+  msg += '*' + padR('Total', 24) + padL(parseFloat(t.grand).toFixed(0), 8) + '*\n';
+  msg += padR('Received', 24) + padL(parseFloat(t.grand).toFixed(0), 8) + '\n';
   if(t.disc > 0){
-    msg += '🎉 *You Saved:  ₹' + parseFloat(t.discAmt).toFixed(0) + '*\n';
+    msg += '*' + padR('You Saved', 24) + padL(parseFloat(t.discAmt).toFixed(1), 8) + '*\n';
   }
+  msg += bar + '\n';
 
-  msg += line + '\n';
+  // ── NOTE ──
+  if(note) msg += '📝 _' + note + '_\n' + bar + '\n';
 
-  if(note) msg += '📝 ' + note + '\n' + line + '\n';
-
-  // ── Terms ──
-  const terms = s.terms||'';
+  // ── TERMS & CONDITIONS ──
+  const terms = (s.terms||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
   if(terms){
-    msg += line + '\n';
-    // Split long terms into readable chunks for WA
-    msg += '_' + terms + '_' + '\n';
+    msg += '_' + terms + '_\n';
+    msg += bar + '\n';
   }
 
-  // ── Footer ──
-  msg += line + '\n';
-  msg += '🙏 _' + (s.thank_you||'Thank you for your purchase!') + '_';
-  msg += '\n_Visit Again_ 😊';
+  // ── FOOTER ──
+  msg += '🙏 _' + (s.thank_you||'Thank you for your purchase!') + '_\n';
 
   return msg;
 }
