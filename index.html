@@ -4163,6 +4163,9 @@ function vbClear(){
 }
 
 async function vbSave(){
+  if(window._savingBill) return;
+  window._savingBill = true;
+  try{
   const validRows = VB.rows.filter(r=>r.itemName && parseFloat(r.price)>0);
   if(!validRows.length){ toast('Ek pan item add karo!','error'); return; }
 
