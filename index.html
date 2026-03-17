@@ -763,7 +763,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
 <body>
 
 <!-- LOGIN SCREEN -->
-<div id="loginScreen" style="display:none;align-items:center;justify-content:center;min-height:100dvh;background:var(--bg);padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));box-sizing:border-box">
+<div id="loginScreen" style="display:flex;align-items:center;justify-content:center;min-height:100dvh;background:var(--bg);padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));box-sizing:border-box">
   <div style="width:100%;max-width:360px">
     <div style="text-align:center;margin-bottom:28px">
       <div style="font-size:44px">🏪</div>
@@ -789,7 +789,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
   </div>
 </div>
 
-<div id="mainApp" style="display:none">
+<div id="mainApp">
 
 <!-- MOBILE BOTTOM NAV -->
 <nav class="mobile-bottom-nav" id="mobileBottomNav">
@@ -4163,6 +4163,9 @@ function vbClear(){
 }
 
 async function vbSave(){
+  if(window._savingBill) return;
+  window._savingBill = true;
+  try{
   const validRows = VB.rows.filter(r=>r.itemName && parseFloat(r.price)>0);
   if(!validRows.length){ toast('Ek pan item add karo!','error'); return; }
 
