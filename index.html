@@ -4391,8 +4391,16 @@ function showAfterSaveOptions(inv, billNum){
   const modal = document.getElementById('afterSaveModal');
   const body = document.getElementById('afterSaveBody');
   const billStr = String(billNum).padStart(4,'0');
-  const phone = inv.phone || (inv.customer_id ? (S.customers.find(c=>c.id===inv.customer_id)||{}).phone||'' : '') || document.getElementById('vbPhone').value || '';
+
+  // PEHLA set karo — button click ma vaperay
+  window._lastSavedInv = inv;
+
+  const phone = inv.phone ||
+    (inv.customer_id ? (S.customers.find(c=>c.id===inv.customer_id)||{}).phone||'' : '') ||
+    '';
   const waNum = phone.replace(/\D/g,'');
+  // waNum global ma store karo jethhi button use kari shake
+  window._lastSavedPhone = waNum;
 
   body.innerHTML = `
     <div style="text-align:center;margin-bottom:18px">
@@ -4401,28 +4409,41 @@ function showAfterSaveOptions(inv, billNum){
       <div style="font-size:12px;color:var(--muted);margin-top:4px">${inv.customer_name||'Walk-in'} · ₹${inv.total||0}</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <button class="btn btn-primary" style="width:100%;font-size:14px;padding:12px" onclick="closeAfterSave();setTimeout(()=>thermalPrint(window._lastSavedInv),100)">
+      <button class="btn btn-primary" style="width:100%;font-size:14px;padding:12px" onclick="afterSavePrint()">
         🖨️ Print Bill
       </button>
-      <button class="btn" style="width:100%;font-size:14px;padding:12px;background:var(--s3);color:var(--text)" onclick="closeAfterSave();setTimeout(()=>vbShareImage(window._lastSavedInv),100)">
+      <button class="btn" style="width:100%;font-size:14px;padding:12px;background:var(--s3);color:var(--text)" onclick="afterSaveShare()">
         📤 Share (Image)
       </button>
-      ${waNum ? `<button class="btn" style="width:100%;font-size:14px;padding:12px;background:#25D366;color:#fff" onclick="closeAfterSave();setTimeout(()=>vbWhatsApp(window._lastSavedInv,'${waNum}'),100)">
-        💬 WhatsApp
-      </button>` : `<button class="btn" style="width:100%;font-size:14px;padding:12px;background:#25D366;color:#fff;opacity:0.5" disabled>
-        💬 WhatsApp (No Phone)
-      </button>`}
+      <button class="btn" style="width:100%;font-size:14px;padding:12px;background:#25D366;color:#fff" ${!waNum?'disabled style="opacity:0.5"':''} onclick="afterSaveWA()">
+        💬 WhatsApp ${!waNum ? '(No Phone)' : ''}
+      </button>
       <button class="btn" style="width:100%;font-size:14px;padding:12px;background:var(--s2);color:var(--muted)" onclick="closeAfterSave()">
         ✖ Close
       </button>
     </div>
   `;
-  window._lastSavedInv = inv;
   modal.classList.add('open');
 }
 
 function closeAfterSave(){
   document.getElementById('afterSaveModal').classList.remove('open');
+}
+
+function afterSavePrint(){
+  closeAfterSave();
+  setTimeout(()=>{ thermalPrint(window._lastSavedInv); }, 150);
+}
+
+function afterSaveShare(){
+  closeAfterSave();
+  setTimeout(()=>{ vbShareImage(window._lastSavedInv); }, 150);
+}
+
+function afterSaveWA(){
+  const phone = window._lastSavedPhone || '';
+  closeAfterSave();
+  setTimeout(()=>{ vbWhatsApp(window._lastSavedInv, phone); }, 150);
 }
 
 function vbShareImage(inv){
