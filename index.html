@@ -2382,9 +2382,8 @@ function buildVyaparMsg(items, t, customer, custPhone, billNum, dateStr, payment
   const s = S.settings;
   const billStr = String(billNum).padStart(4,'0');
   const bar  = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
-  const thin = '----------------------------';
+  const thin = '────────────────────────────';
 
-  // pad helpers
   function padR(str, len){ str=String(str); if(str.length>=len) return str.substring(0,len); return str+' '.repeat(len-str.length); }
   function padL(str, len){ str=String(str); if(str.length>=len) return str.substring(0,len); return ' '.repeat(len-str.length)+str; }
 
@@ -2406,49 +2405,55 @@ function buildVyaparMsg(items, t, customer, custPhone, billNum, dateStr, payment
   msg += bar + '\n';
 
   // ── ITEMS TABLE — monospace block ──
-  // Col widths: SR=3, Name=18, Qty=5, Price=6, Amt=6  total=38
+  // Total width ~28 chars to fit mobile WA narrow screen
+  // SR=2  Name=14  Qty=4  Amt=6  = 2+1+14+1+4+1+6 = 29
   let table = '';
-  table += padR('SR',3) + ' ' + padR('Name',18) + ' ' + padR('Qty',5) + ' ' + padL('Price',6) + ' ' + padL('Amt',6) + '\n';
-  table += thin + '\n';
+  table += padR('SR',2) + ' ' + padR('Name',14) + ' ' + padR('Qty',4) + ' ' + padL('Amt',6) + '\n';
+  table += '─────────────────────────────\n';
 
   let totalQty = 0;
   items.forEach((item, i) => {
     const qty = parseInt(item.qty)||1;
     totalQty += qty;
-    const srS    = padR(String(i+1), 3);
-    const nameS  = padR(String(item.name).substring(0,18), 18);
-    const qtyS   = padR(qty+'Pc', 5);
-    const priceS = padL(parseFloat(item.price).toFixed(0), 6);
-    const amtS   = padL(parseFloat(item.total).toFixed(0), 6);
-    table += srS + ' ' + nameS + ' ' + qtyS + ' ' + priceS + ' ' + amtS + '\n';
+    const srS  = padR(String(i+1), 2);
+    const qtyS = padR(qty+'Pc', 4);
+    const amtS = padL(parseFloat(item.total).toFixed(0), 6);
+
+    // Name wrap — 14 chars per line, max 2 lines
+    const fullName = String(item.name);
+    const line1 = fullName.substring(0, 14);
+    const line2 = fullName.length > 14 ? fullName.substring(14, 28) : '';
+
+    table += srS + ' ' + padR(line1,14) + ' ' + qtyS + ' ' + amtS + '\n';
+    if(line2) table += '   ' + padR(line2,14) + '\n';
+    table += '   @' + parseFloat(item.price).toFixed(0) + '/pc\n';
   });
 
-  table += thin + '\n';
-  table += padR('Total',3) + ' ' + padR('',18) + ' ' + padR(String(totalQty)+'Pc',5) + ' ' + padL('',6) + ' ' + padL(parseFloat(t.sub).toFixed(0),6) + '\n';
+  table += '─────────────────────────────\n';
+  table += padR('Total',2+1+14) + ' ' + padR(totalQty+'Pc',4) + ' ' + padL(parseFloat(t.sub).toFixed(0),6) + '\n';
 
-  // Wrap in monospace — WhatsApp ma exact alignment
   msg += '```\n' + table + '```\n';
   msg += bar + '\n';
 
   // ── TOTALS ──
   if(t.disc > 0){
-    msg += padR('Subtotal',20)    + padL(parseFloat(t.sub).toFixed(0),8) + '\n';
-    msg += padR('Discount('+t.disc+'%)',20) + padL('-'+parseFloat(t.discAmt).toFixed(0),8) + '\n';
+    msg += padR('Subtotal',18)          + padL(parseFloat(t.sub).toFixed(0),8) + '\n';
+    msg += padR('Disc('+t.disc+'%)',18) + padL('-'+parseFloat(t.discAmt).toFixed(0),8) + '\n';
   }
   if(parseFloat(t.gst)>0){
-    msg += padR('GST('+Math.round(t.gstRate)+'%)',20) + padL(parseFloat(t.gst).toFixed(0),8) + '\n';
+    msg += padR('GST('+Math.round(t.gstRate)+'%)',18) + padL(parseFloat(t.gst).toFixed(0),8) + '\n';
   }
-  msg += '*' + padR('Total',20)    + padL(parseFloat(t.grand).toFixed(0),8) + '*\n';
-  msg += padR('Received',20)       + padL(parseFloat(t.grand).toFixed(0),8) + '\n';
+  msg += '*' + padR('Total',18)    + padL(parseFloat(t.grand).toFixed(0),8) + '*\n';
+  msg += padR('Received',18)       + padL(parseFloat(t.grand).toFixed(0),8) + '\n';
   if(t.disc > 0){
-    msg += '*' + padR('You Saved',20) + padL(parseFloat(t.discAmt).toFixed(1),8) + '*\n';
+    msg += '*' + padR('You Saved',18) + padL(parseFloat(t.discAmt).toFixed(1),8) + '*\n';
   }
   msg += bar + '\n';
 
   // ── NOTE ──
   if(note) msg += '📝 _' + note + '_\n' + bar + '\n';
 
-  // ── TERMS & CONDITIONS ──
+  // ── TERMS ──
   const terms = (s.terms||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
   if(terms){
     msg += '_' + terms + '_\n';
