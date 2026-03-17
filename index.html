@@ -998,9 +998,24 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap">
         <input type="text" id="prodSearch" placeholder="🔍 Search..." oninput="renderProds()"
           style="padding:9px 13px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;flex:1;max-width:280px">
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" id="btnSelectAll" onclick="toggleSelectAll()" style="display:none">☑ Select All</button>
+          <button class="btn btn-danger btn-sm" id="btnBulkDelete" onclick="bulkDeleteProds()" style="display:none">🗑 Delete Selected</button>
+          <button class="btn btn-yellow btn-sm" id="btnBulkMode" onclick="toggleBulkMode()">☐ Select</button>
           <button class="btn btn-blue btn-sm" onclick="showPage('import',document.querySelectorAll('.nav-item')[6])">⇪ Excel</button>
           <button class="btn btn-primary" onclick="openAddProd()">+ New</button>
+        </div>
+      </div>
+      <div id="bulkEditBar" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;gap:10px;flex-wrap:wrap;align-items:center">
+        <span id="bulkSelCount" style="font-size:13px;color:var(--accent);font-weight:600">0 selected</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
+          <label style="font-size:12px;color:var(--muted);align-self:center">Price +/-:</label>
+          <input type="number" id="bulkPriceVal" placeholder="e.g. 10 or -5" style="width:110px;padding:6px 10px;background:var(--s1);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px">
+          <select id="bulkPriceType" style="padding:6px 8px;background:var(--s1);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px">
+            <option value="flat">₹ Flat</option>
+            <option value="pct">% Percent</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="bulkUpdatePrice()">✅ Update Price</button>
         </div>
       </div>
       <div class="prod-grid" id="prodGrid"></div>
@@ -3062,11 +3077,17 @@ function renderProds(){
   const q=(document.getElementById('prodSearch')?.value||'').toLowerCase();
   const list=S.products.filter(p=>p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q));
   const grid=document.getElementById('prodGrid');
+  const bulk = window._bulkMode || false;
   if(!list.length){ grid.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="ei">📦</div><p>No products</p></div>'; return; }
   grid.innerHTML=list.map(p=>{
     const pr=p.cost?(p.price-p.cost).toFixed(2):0;
     const pct=p.cost&&p.cost>0?((p.price-p.cost)/p.cost*100).toFixed(1):0;
-    return`<div class="prod-card">
+    const checked = (window._selectedProds||new Set()).has(p.id) ? 'checked' : '';
+    return`<div class="prod-card" id="pcard-${p.id}" style="${checked?'border-color:var(--accent);background:rgba(110,231,183,0.06)':''}">
+      ${bulk ? `<label style="display:flex;align-items:center;gap:7px;margin-bottom:6px;cursor:pointer">
+        <input type="checkbox" ${checked} onchange="toggleProdSel(${p.id},this.checked)" style="width:15px;height:15px;accent-color:var(--accent)">
+        <span style="font-size:11px;color:var(--muted)">Select</span>
+      </label>` : ''}
       <div class="pc-name">${p.name}</div>
       <div class="pc-sku">${p.sku||'—'} · ${p.category||'—'}</div>
       <div class="pc-price">₹${p.price}</div>
@@ -3148,6 +3169,96 @@ async function delProd(id){
     saveOffline(); renderProds(); populateSels(); updateDash();
     toast('Deleted','success');
   } catch(e){ toast('Error','error'); }
+}
+
+// ===== BULK PRODUCT FUNCTIONS =====
+window._bulkMode = false;
+window._selectedProds = new Set();
+
+function toggleBulkMode(){
+  window._bulkMode = !window._bulkMode;
+  window._selectedProds = new Set();
+  const btn = document.getElementById('btnBulkMode');
+  const selAll = document.getElementById('btnSelectAll');
+  const bulkDel = document.getElementById('btnBulkDelete');
+  const editBar = document.getElementById('bulkEditBar');
+  if(window._bulkMode){
+    btn.textContent = '✕ Cancel';
+    btn.className = 'btn btn-ghost btn-sm';
+    selAll.style.display = 'inline-flex';
+    bulkDel.style.display = 'inline-flex';
+    editBar.style.display = 'flex';
+  } else {
+    btn.textContent = '☐ Select';
+    btn.className = 'btn btn-yellow btn-sm';
+    selAll.style.display = 'none';
+    bulkDel.style.display = 'none';
+    editBar.style.display = 'none';
+  }
+  renderProds();
+}
+
+function toggleProdSel(id, checked){
+  if(checked) window._selectedProds.add(id);
+  else window._selectedProds.delete(id);
+  const card = document.getElementById('pcard-'+id);
+  if(card){
+    card.style.borderColor = checked ? 'var(--accent)' : '';
+    card.style.background = checked ? 'rgba(110,231,183,0.06)' : '';
+  }
+  document.getElementById('bulkSelCount').textContent = window._selectedProds.size + ' selected';
+}
+
+function toggleSelectAll(){
+  const q=(document.getElementById('prodSearch')?.value||'').toLowerCase();
+  const list=S.products.filter(p=>p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q));
+  const allSelected = list.every(p => window._selectedProds.has(p.id));
+  if(allSelected){
+    list.forEach(p => window._selectedProds.delete(p.id));
+    document.getElementById('btnSelectAll').textContent = '☑ Select All';
+  } else {
+    list.forEach(p => window._selectedProds.add(p.id));
+    document.getElementById('btnSelectAll').textContent = '☐ Deselect All';
+  }
+  document.getElementById('bulkSelCount').textContent = window._selectedProds.size + ' selected';
+  renderProds();
+}
+
+async function bulkDeleteProds(){
+  if(!window._selectedProds.size){ toast('Koi product select nathi karyun!','error'); return; }
+  if(!confirm(window._selectedProds.size + ' products delete karva chho?')) return;
+  let done=0;
+  for(const id of window._selectedProds){
+    try{
+      await api(`products?id=eq.${id}`,'DELETE');
+      S.products = S.products.filter(p=>p.id!==id);
+      done++;
+    } catch(e){}
+  }
+  window._selectedProds = new Set();
+  saveOffline(); renderProds(); populateSels(); updateDash();
+  toast('✅ '+done+' products deleted!','success');
+}
+
+async function bulkUpdatePrice(){
+  if(!window._selectedProds.size){ toast('Koi product select nathi karyun!','error'); return; }
+  const val = parseFloat(document.getElementById('bulkPriceVal').value);
+  if(!val){ toast('Value enter karo!','error'); return; }
+  const type = document.getElementById('bulkPriceType').value;
+  let done=0;
+  for(const id of window._selectedProds){
+    const p = S.products.find(x=>x.id===id);
+    if(!p) continue;
+    let newPrice = type==='pct' ? p.price + (p.price * val/100) : p.price + val;
+    newPrice = Math.max(0, parseFloat(newPrice.toFixed(2)));
+    try{
+      await api(`products?id=eq.${id}`,'PATCH',{price:newPrice});
+      p.price = newPrice;
+      done++;
+    } catch(e){}
+  }
+  saveOffline(); renderProds(); populateSels(); updateDash();
+  toast('✅ '+done+' products ni price update thayi!','success');
 }
 
 // ===== CUSTOMERS =====
@@ -4314,9 +4425,9 @@ function vbShareImage(inv){
 function vbWhatsApp(inv, phone){
   const billStr = String(inv.bill_number||'').padStart(4,'0');
   const s = S.settings;
-  const msg = `*${s.shop_name||'Shop'}*\nBill #${billStr}\nCustomer: ${inv.customer_name||'Walk-in'}\nAmount: ₹${inv.total||0}\nDate: ${inv.bill_date||''}\n\n${s.thank_you||'Thank you!'}`;
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-  window.open(url,'_blank');
+  const items = (inv.items||[]).map(i=>`  • ${i.name} x${i.qty||1} = ₹${i.total||i.price||0}`).join('\n');
+  const msg = `*${s.shop_name||'Shop'}*\nBill #${billStr} | ${inv.bill_date||''}\n\nCustomer: ${inv.customer_name||'Walk-in'}\n\nItems:\n${items}\n\nTotal: *₹${inv.total||0}*\nPayment: ${inv.payment_mode||'Cash'}\n\n${s.thank_you||'Thank you! Visit again.'}`;
+  sendToWA(phone, msg);
 }
 
 function vbPrint(){
