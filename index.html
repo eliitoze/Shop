@@ -914,7 +914,10 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
           <div class="vb-inv-info">
             <div class="vb-inv-row">
               <span class="vb-inv-label">Invoice Number</span>
-              <span class="vb-inv-val" id="vbInvNo">—</span>
+              <input id="vbInvNo" type="number" 
+                style="width:90px;padding:3px 6px;background:var(--s2);border:1px solid var(--border);border-radius:5px;color:var(--accent);font-family:'DM Mono',sans-serif;font-size:16px;font-weight:800;text-align:right;outline:none"
+                title="Manual bill number nakhi shakay"
+                onchange="vbInvNoChanged(this.value)">
             </div>
             <div class="vb-inv-row">
               <span class="vb-inv-label">Invoice Date</span>
@@ -1741,9 +1744,19 @@ function saveOffline(){
 function setSyncStatus(status){
   const dot = document.getElementById('syncDot');
   const txt = document.getElementById('syncText');
-  dot.className = 'sync-dot ' + (status==='online'?'':'offline');
-  txt.textContent = status==='online' ? 'Cloud Synced ✓' : 'Offline Mode';
-  txt.style.color = status==='online' ? 'var(--accent)' : 'var(--red)';
+  if(status==='online'){
+    dot.className = 'sync-dot';
+    txt.textContent = 'Cloud Synced ✓';
+    txt.style.color = 'var(--accent)';
+  } else if(status==='syncing'){
+    dot.className = 'sync-dot syncing';
+    txt.textContent = 'Syncing...';
+    txt.style.color = 'var(--yellow)';
+  } else {
+    dot.className = 'sync-dot offline';
+    txt.textContent = 'Offline Mode';
+    txt.style.color = 'var(--red)';
+  }
 }
 
 function applySettings(){
@@ -2156,12 +2169,16 @@ async function saveBill(){
     custName = wn||'Walk-in';
   }
   const billNum=parseInt(S.settings.bill_counter)||1;
+  const now = new Date();
   const inv={
     bill_number:billNum, customer_name:custName,
     customer_id:cust?cust.id:null, payment_mode:getActivePayMode(),
     items:S.billItems, subtotal:t.sub, discount:t.discAmt, discount_pct:t.disc,
     gst:t.gst, gst_rate:t.gstRate, total:t.grand, profit:t.profit,
-    note:document.getElementById('billNote').value, bill_date:new Date().toLocaleDateString('en-IN'), status:'paid'
+    note:document.getElementById('billNote').value,
+    bill_date:now.toLocaleDateString('en-IN'),
+    bill_time:now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}),
+    status:'paid'
   };
   try {
     setSyncStatus('syncing');
@@ -3201,6 +3218,20 @@ async function delCust(id){
 }
 
 // ===== INVOICES =====
+async function deleteInvoice(id){
+  if(!confirm('Aa bill delete karvu chhe?')) return;
+  try {
+    await api('invoices?id=eq.'+id,'DELETE');
+    S.invoices = S.invoices.filter(i=>i.id!==id);
+    saveOffline(); renderInvs(); updateDash();
+    toast('✅ Bill deleted!','success');
+  } catch(e){
+    S.invoices = S.invoices.filter(i=>i.id!==id);
+    saveOffline(); renderInvs(); updateDash();
+    toast('Bill deleted locally!','success');
+  }
+}
+
 function renderInvs(){
   const tbody=document.getElementById('invTable');
   const q=(document.getElementById('invSearch')?.value||'').toLowerCase().trim();
@@ -3238,6 +3269,7 @@ function renderInvs(){
         <button class="btn btn-print btn-sm" onclick="thermalPrint(S.invoices.find(x=>x.id==${inv.id}))">🖨</button>
         <button class="btn btn-wa btn-sm" onclick="shareImageWA(${inv.id})" title="WhatsApp Share">💬</button>
         <button class="btn btn-blue btn-sm" onclick="openFullInvoice(${inv.id})" title="Open Full Invoice">🔗</button>
+        <button class="btn btn-red btn-sm" onclick="deleteInvoice(${inv.id})" title="Delete">🗑</button>
       </td>
     </tr>`).join('');
 }
@@ -3263,8 +3295,8 @@ function openBillDetail(id){
       <div style="text-align:right">
         <div style="color:var(--muted);font-size:11px">Ref No</div>
         <div style="font-weight:700;font-family:'DM Mono',monospace">${billStr}</div>
-        <div style="color:var(--muted);font-size:11px;margin-top:4px">Date</div>
-        <div style="font-size:12px">${inv.bill_date}</div>
+        <div style="color:var(--muted);font-size:11px;margin-top:4px">Date & Time</div>
+        <div style="font-size:12px">${inv.bill_date||'—'} ${inv.bill_time?'· '+inv.bill_time:''}</div>
       </div>
     </div>
     <div style="margin-top:8px;font-size:12px">Payment: ${pm[inv.payment_mode]||inv.payment_mode}</div>
@@ -3880,7 +3912,7 @@ function vbInit(){
 
 function vbUpdateInvInfo(){
   const num = parseInt(S.settings.bill_counter)||1;
-  document.getElementById('vbInvNo').textContent = String(num).padStart(4,'0');
+  document.getElementById('vbInvNo').value = num;
   const now = new Date();
   document.getElementById('vbInvDate').textContent = now.toLocaleDateString('en-IN', {day:'2-digit',month:'2-digit',year:'numeric'});
   vbUpdateTime();
@@ -4105,6 +4137,14 @@ function vbSelectCust(id, name, phone, address){
   document.getElementById('vbCustDrop').style.display='none';
 }
 
+function vbInvNoChanged(val){
+  // User entered manual bill number - store it
+  const num = parseInt(val);
+  if(num > 0){
+    window._manualBillNum = num;
+  }
+}
+
 function vbClear(){
   VB.rows = [];
   document.getElementById('vbCustName').value='';
@@ -4137,7 +4177,10 @@ async function vbSave(){
   const afterDisc = subtotal - discAmt;
   const roundOff = document.getElementById('vbRoundOff').checked;
   const grand = roundOff ? Math.round(afterDisc) : afterDisc;
-  const billNum = parseInt(S.settings.bill_counter)||1;
+  // Use manual bill number if set, else auto
+  const autoBillNum = parseInt(S.settings.bill_counter)||1;
+  const billNum = window._manualBillNum || autoBillNum;
+  window._manualBillNum = null; // reset after use
 
   const items = validRows.map(r=>({
     pid: r.pid, name: r.itemName, qty: parseFloat(r.qty)||1,
@@ -4146,11 +4189,14 @@ async function vbSave(){
   }));
   const profit = items.reduce((s,i)=>s+(i.total-(i.cost*(parseFloat(i.qty)||1))),0) - discAmt;
 
+  const nowVb = new Date();
   const inv = {
     bill_number: billNum, customer_name: custName, customer_id: custId,
     payment_mode: payMode, items, subtotal, discount: discAmt, discount_pct: discPct,
     gst: 0, gst_rate: 0, total: grand, profit,
-    note, bill_date: new Date().toLocaleDateString('en-IN'), status:'paid'
+    note, bill_date: nowVb.toLocaleDateString('en-IN'),
+    bill_time: nowVb.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}),
+    status:'paid'
   };
 
   try {
