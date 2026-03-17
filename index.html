@@ -987,7 +987,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
         <!-- ACTION BUTTONS -->
         <div class="vb-actions">
           <button class="vb-btn-print" onclick="vbPrint()">🖨 Print <span style="font-size:10px">▼</span></button>
-          <button class="vb-btn-save" onclick="vbSave()">💾 Save</button>
+          <button class="vb-btn-save" id="vbSaveBtn" onclick="vbSave()">💾 Save</button>
         </div>
 
       </div>
@@ -4165,8 +4165,15 @@ function vbClear(){
 async function vbSave(){
   if(window._vbSaving){ return; } // double save rokva
   window._vbSaving = true;
+  const saveBtn = document.getElementById('vbSaveBtn');
+  if(saveBtn){ saveBtn.disabled=true; saveBtn.textContent='⏳ Saving...'; }
   const validRows = VB.rows.filter(r=>r.itemName && parseFloat(r.price)>0);
-  if(!validRows.length){ window._vbSaving=false; toast('Ek pan item add karo!','error'); return; }
+  if(!validRows.length){ 
+    window._vbSaving=false; 
+    if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent='💾 Save'; }
+    toast('Ek pan item add karo!','error'); 
+    return; 
+  }
 
   const custId = parseInt(document.getElementById('vbCustId').value)||null;
   const custName = document.getElementById('vbCustName').value.trim() || 'Walk-in';
@@ -4232,6 +4239,8 @@ async function vbSave(){
     showAfterSaveOptions(offInv, billNum);
   } finally {
     window._vbSaving = false;
+    const saveBtn = document.getElementById('vbSaveBtn');
+    if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent='💾 Save'; }
   }
 }
 
@@ -4266,11 +4275,11 @@ function showAfterSaveOptions(inv, billNum){
     </div>
   `;
   window._lastSavedInv = inv;
-  modal.style.display = 'flex';
+  modal.classList.add('open');
 }
 
 function closeAfterSave(){
-  document.getElementById('afterSaveModal').style.display = 'none';
+  document.getElementById('afterSaveModal').classList.remove('open');
 }
 
 function vbShareImage(inv){
@@ -4347,7 +4356,7 @@ function vbPrint(){
 })();
 </script>
 <!-- AFTER SAVE MODAL -->
-<div class="overlay" id="afterSaveModal" style="display:none;z-index:500" onclick="if(event.target===this)closeAfterSave()">
+<div class="overlay" id="afterSaveModal" style="z-index:500" onclick="if(event.target===this)closeAfterSave()">
   <div class="modal" style="max-width:360px;padding:24px" id="afterSaveBody"></div>
 </div>
 </div><!-- end mainApp -->
