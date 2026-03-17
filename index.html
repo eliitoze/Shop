@@ -987,7 +987,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
         <!-- ACTION BUTTONS -->
         <div class="vb-actions">
           <button class="vb-btn-print" onclick="vbPrint()">🖨 Print <span style="font-size:10px">▼</span></button>
-          <button class="vb-btn-save" onclick="vbSave()">💾 Save</button>
+          <button class="vb-btn-save" onclick="safeSave()" id="saveBtn">💾 Save</button>
         </div>
 
       </div>
@@ -2854,7 +2854,70 @@ function exportBillPDF(invoiceId){
       @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
     </style>
     <script>window.onload=function(){window.print();}<\/script>
-  </head><body>${buildBillHTMLForPDF(inv)}</body></html>`;
+  </head><body>${buildBillHTMLForPDF(inv)}
+<!-- SAVE OPTIONS MODAL -->
+<div id="saveOptions" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:9999">
+<div style="background:#111;padding:25px;border-radius:12px;width:260px;text-align:center;color:white">
+<h3>Bill Saved</h3>
+<button onclick="vbPrint()" style="width:100%;margin:6px;padding:10px">🖨 Print</button>
+<button onclick="shareBill()" style="width:100%;margin:6px;padding:10px">📤 Share</button>
+<button onclick="sendWhatsApp()" style="width:100%;margin:6px;padding:10px">💬 WhatsApp</button>
+<button onclick="closeSave()" style="width:100%;margin:6px;padding:10px">❌ Close</button>
+</div>
+</div>
+
+<script>
+let savingBill=false;
+
+function safeSave(){
+
+if(savingBill) return;
+
+savingBill=true;
+
+const btn=document.getElementById("saveBtn");
+if(btn) btn.disabled=true;
+
+vbSave();
+
+setTimeout(()=>{
+savingBill=false;
+if(btn) btn.disabled=false;
+showSaveOptions();
+},1200);
+
+}
+
+function showSaveOptions(){
+document.getElementById("saveOptions").style.display="flex";
+}
+
+function closeSave(){
+document.getElementById("saveOptions").style.display="none";
+}
+
+function shareBill(){
+
+let text="Bill generated successfully";
+
+if(navigator.share){
+navigator.share({text});
+}else{
+alert(text);
+}
+
+}
+
+function sendWhatsApp(){
+
+let text=encodeURIComponent("Bill generated");
+
+window.open("https://wa.me/?text="+text);
+
+}
+</script>
+
+</body></html>`;
   const blob = new Blob([html],{type:'text/html'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -2935,7 +2998,70 @@ async function exportDailyPDF(){
       th{background:#f3f4f6;font-weight:bold;}
     </style>
     <script>window.onload=function(){window.print();}<\/script>
-  </head><body>${tmpDiv.innerHTML}</body></html>`;
+  </head><body>${tmpDiv.innerHTML}
+<!-- SAVE OPTIONS MODAL -->
+<div id="saveOptions" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:9999">
+<div style="background:#111;padding:25px;border-radius:12px;width:260px;text-align:center;color:white">
+<h3>Bill Saved</h3>
+<button onclick="vbPrint()" style="width:100%;margin:6px;padding:10px">🖨 Print</button>
+<button onclick="shareBill()" style="width:100%;margin:6px;padding:10px">📤 Share</button>
+<button onclick="sendWhatsApp()" style="width:100%;margin:6px;padding:10px">💬 WhatsApp</button>
+<button onclick="closeSave()" style="width:100%;margin:6px;padding:10px">❌ Close</button>
+</div>
+</div>
+
+<script>
+let savingBill=false;
+
+function safeSave(){
+
+if(savingBill) return;
+
+savingBill=true;
+
+const btn=document.getElementById("saveBtn");
+if(btn) btn.disabled=true;
+
+vbSave();
+
+setTimeout(()=>{
+savingBill=false;
+if(btn) btn.disabled=false;
+showSaveOptions();
+},1200);
+
+}
+
+function showSaveOptions(){
+document.getElementById("saveOptions").style.display="flex";
+}
+
+function closeSave(){
+document.getElementById("saveOptions").style.display="none";
+}
+
+function shareBill(){
+
+let text="Bill generated successfully";
+
+if(navigator.share){
+navigator.share({text});
+}else{
+alert(text);
+}
+
+}
+
+function sendWhatsApp(){
+
+let text=encodeURIComponent("Bill generated");
+
+window.open("https://wa.me/?text="+text);
+
+}
+</script>
+
+</body></html>`;
   document.body.removeChild(tmpDiv);
   const blob2 = new Blob([html2],{type:'text/html'});
   const url2  = URL.createObjectURL(blob2);
@@ -4163,9 +4289,6 @@ function vbClear(){
 }
 
 async function vbSave(){
-  if(window._savingBill) return;
-  window._savingBill = true;
-  try{
   const validRows = VB.rows.filter(r=>r.itemName && parseFloat(r.price)>0);
   if(!validRows.length){ toast('Ek pan item add karo!','error'); return; }
 
@@ -4273,5 +4396,68 @@ function vbPrint(){
   <div class="modal" style="max-width:360px;padding:24px" id="afterSaveBody"></div>
 </div>
 </div><!-- end mainApp -->
+
+<!-- SAVE OPTIONS MODAL -->
+<div id="saveOptions" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:9999">
+<div style="background:#111;padding:25px;border-radius:12px;width:260px;text-align:center;color:white">
+<h3>Bill Saved</h3>
+<button onclick="vbPrint()" style="width:100%;margin:6px;padding:10px">🖨 Print</button>
+<button onclick="shareBill()" style="width:100%;margin:6px;padding:10px">📤 Share</button>
+<button onclick="sendWhatsApp()" style="width:100%;margin:6px;padding:10px">💬 WhatsApp</button>
+<button onclick="closeSave()" style="width:100%;margin:6px;padding:10px">❌ Close</button>
+</div>
+</div>
+
+<script>
+let savingBill=false;
+
+function safeSave(){
+
+if(savingBill) return;
+
+savingBill=true;
+
+const btn=document.getElementById("saveBtn");
+if(btn) btn.disabled=true;
+
+vbSave();
+
+setTimeout(()=>{
+savingBill=false;
+if(btn) btn.disabled=false;
+showSaveOptions();
+},1200);
+
+}
+
+function showSaveOptions(){
+document.getElementById("saveOptions").style.display="flex";
+}
+
+function closeSave(){
+document.getElementById("saveOptions").style.display="none";
+}
+
+function shareBill(){
+
+let text="Bill generated successfully";
+
+if(navigator.share){
+navigator.share({text});
+}else{
+alert(text);
+}
+
+}
+
+function sendWhatsApp(){
+
+let text=encodeURIComponent("Bill generated");
+
+window.open("https://wa.me/?text="+text);
+
+}
+</script>
+
 </body>
 </html>
