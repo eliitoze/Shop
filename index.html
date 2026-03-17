@@ -2468,31 +2468,22 @@ function buildVyaparMsg(items, t, customer, custPhone, billNum, dateStr, payment
 function sendToWA(phone, msg){
   const cleanPhone = (phone||'').replace(/\D/g,'');
   const encoded = encodeURIComponent(msg);
-  const isAndroid = /android/i.test(navigator.userAgent);
-  const isMobile = /android|iphone|ipad/i.test(navigator.userAgent);
-
+  let url = '';
   if(cleanPhone.length >= 10){
     const withCode = cleanPhone.startsWith('91') && cleanPhone.length===12
       ? cleanPhone : '91'+cleanPhone.slice(-10);
-    if(isAndroid){
-      // Android: intent URL - opens WA app directly
-      const a = document.createElement('a');
-      a.href = 'intent://send?phone='+withCode+'&text='+encoded+'#Intent;scheme=whatsapp;package=com.whatsapp;end';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    } else {
-      // Desktop/iOS: new tab ma kholo
-      window.open('https://wa.me/'+withCode+'?text='+encoded, '_blank');
-    }
+    url = 'https://wa.me/'+withCode+'?text='+encoded;
   } else {
-    if(isAndroid){
-      const a = document.createElement('a');
-      a.href = 'intent://send?text='+encoded+'#Intent;scheme=whatsapp;package=com.whatsapp;end';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    } else {
-      window.open('https://web.whatsapp.com/', '_blank');
-    }
-    toast('WhatsApp khulushe — message paste karo','success');
+    url = 'https://wa.me/?text='+encoded;
+    toast('Phone number nathi — contact select karo','success');
   }
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function waShare(){
@@ -4410,13 +4401,13 @@ function showAfterSaveOptions(inv, billNum){
       <div style="font-size:12px;color:var(--muted);margin-top:4px">${inv.customer_name||'Walk-in'} · ₹${inv.total||0}</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <button class="btn btn-primary" style="width:100%;font-size:14px;padding:12px" onclick="thermalPrint(window._lastSavedInv);closeAfterSave()">
+      <button class="btn btn-primary" style="width:100%;font-size:14px;padding:12px" onclick="closeAfterSave();setTimeout(()=>thermalPrint(window._lastSavedInv),100)">
         🖨️ Print Bill
       </button>
-      <button class="btn" style="width:100%;font-size:14px;padding:12px;background:var(--s3);color:var(--text)" onclick="vbShareImage(window._lastSavedInv);closeAfterSave()">
+      <button class="btn" style="width:100%;font-size:14px;padding:12px;background:var(--s3);color:var(--text)" onclick="closeAfterSave();setTimeout(()=>vbShareImage(window._lastSavedInv),100)">
         📤 Share (Image)
       </button>
-      ${waNum ? `<button class="btn" style="width:100%;font-size:14px;padding:12px;background:#25D366;color:#fff" onclick="vbWhatsApp(window._lastSavedInv,'${waNum}');closeAfterSave()">
+      ${waNum ? `<button class="btn" style="width:100%;font-size:14px;padding:12px;background:#25D366;color:#fff" onclick="closeAfterSave();setTimeout(()=>vbWhatsApp(window._lastSavedInv,'${waNum}'),100)">
         💬 WhatsApp
       </button>` : `<button class="btn" style="width:100%;font-size:14px;padding:12px;background:#25D366;color:#fff;opacity:0.5" disabled>
         💬 WhatsApp (No Phone)
@@ -4475,36 +4466,8 @@ function vbShareImage(inv){
 function vbWhatsApp(inv, phone){
   const d = getBillData(inv);
   if(!d) return;
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff';
-  wrap.innerHTML = buildBillHTML(d, true);
-  document.body.appendChild(wrap);
-  toast('Bill image banavi raha chhe...','success');
-  if(typeof html2canvas !== 'undefined'){
-    html2canvas(wrap, {scale:2, backgroundColor:'#fff', useCORS:true}).then(canvas=>{
-      document.body.removeChild(wrap);
-      canvas.toBlob(blob=>{
-        if(!blob){ _fallbackWAText(d, phone); return; }
-        const file = new File([blob], 'bill.png', {type:'image/png'});
-        const cleanPhone = phone.replace(/\D/g,'');
-        const withCode = cleanPhone.startsWith('91') && cleanPhone.length===12 ? cleanPhone : '91'+cleanPhone.slice(-10);
-        const isAndroid = /android/i.test(navigator.userAgent);
-        // Try image share first
-        if(navigator.canShare && navigator.canShare({files:[file]})){
-          navigator.share({files:[file], title:'Bill', text:withCode ? 'To: +'+withCode : ''}).catch(()=>{
-            // Fallback: open WA with text
-            _fallbackWAText(d, phone);
-          });
-        } else {
-          // Desktop: open web.whatsapp.com with bill text
-          _fallbackWAText(d, phone);
-        }
-      }, 'image/png');
-    }).catch(()=>{ document.body.removeChild(wrap); _fallbackWAText(d, phone); });
-  } else {
-    document.body.removeChild(wrap);
-    _fallbackWAText(d, phone);
-  }
+  const msg = buildVyaparMsg(d.items, d.t, d.customer, d.custPhone, d.billNum, d.dateStr, d.payment, d.note);
+  sendToWA(phone, msg);
 }
 
 function _fallbackWAText(d, phone){
