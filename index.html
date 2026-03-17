@@ -763,7 +763,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
 <body>
 
 <!-- LOGIN SCREEN -->
-<div id="loginScreen" style="display:flex;align-items:center;justify-content:center;min-height:100dvh;background:var(--bg);padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));box-sizing:border-box">
+<div id="loginScreen" style="display:none;align-items:center;justify-content:center;min-height:100dvh;background:var(--bg);padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));box-sizing:border-box">
   <div style="width:100%;max-width:360px">
     <div style="text-align:center;margin-bottom:28px">
       <div style="font-size:44px">🏪</div>
@@ -789,7 +789,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
   </div>
 </div>
 
-<div id="mainApp">
+<div id="mainApp" style="display:none">
 
 <!-- MOBILE BOTTOM NAV -->
 <nav class="mobile-bottom-nav" id="mobileBottomNav">
@@ -4163,11 +4163,10 @@ function vbClear(){
 }
 
 async function vbSave(){
-  if(window._savingBill) return;
-  window._savingBill = true;
-  try{
+  if(window._vbSaving){ return; } // double save rokva
+  window._vbSaving = true;
   const validRows = VB.rows.filter(r=>r.itemName && parseFloat(r.price)>0);
-  if(!validRows.length){ toast('Ek pan item add karo!','error'); return; }
+  if(!validRows.length){ window._vbSaving=false; toast('Ek pan item add karo!','error'); return; }
 
   const custId = parseInt(document.getElementById('vbCustId').value)||null;
   const custName = document.getElementById('vbCustName').value.trim() || 'Walk-in';
@@ -4219,6 +4218,7 @@ async function vbSave(){
     await api('settings?key=eq.bill_counter','PATCH',{value:String(newCounter)});
     setSyncStatus('online');
     saveOffline(); updateDash(); renderInvs();
+    vbClear();
     toast('✅ Bill #'+String(billNum).padStart(4,'0')+' saved!','success');
     showAfterSaveOptions(saved&&saved[0]?saved[0]:inv, billNum);
   } catch(e){
@@ -4227,9 +4227,87 @@ async function vbSave(){
     S.invoices.unshift(offInv);
     const nc = billNum+1; S.settings.bill_counter=String(nc);
     saveOffline(); updateDash(); renderInvs();
+    vbClear();
     toast('Bill saved offline!','success');
     showAfterSaveOptions(offInv, billNum);
+  } finally {
+    window._vbSaving = false;
   }
+}
+
+function showAfterSaveOptions(inv, billNum){
+  const modal = document.getElementById('afterSaveModal');
+  const body = document.getElementById('afterSaveBody');
+  const billStr = String(billNum).padStart(4,'0');
+  const phone = inv.phone || (inv.customer_id ? (S.customers.find(c=>c.id===inv.customer_id)||{}).phone||'' : '') || document.getElementById('vbPhone').value || '';
+  const waNum = phone.replace(/\D/g,'');
+
+  body.innerHTML = `
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="font-size:32px;margin-bottom:8px">✅</div>
+      <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:700;color:var(--accent)">Bill #${billStr} Saved!</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">${inv.customer_name||'Walk-in'} · ₹${inv.total||0}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-primary" style="width:100%;font-size:14px;padding:12px" onclick="thermalPrint(window._lastSavedInv);closeAfterSave()">
+        🖨️ Print Bill
+      </button>
+      <button class="btn" style="width:100%;font-size:14px;padding:12px;background:var(--s3);color:var(--text)" onclick="vbShareImage(window._lastSavedInv);closeAfterSave()">
+        📤 Share (Image)
+      </button>
+      ${waNum ? `<button class="btn" style="width:100%;font-size:14px;padding:12px;background:#25D366;color:#fff" onclick="vbWhatsApp(window._lastSavedInv,'${waNum}');closeAfterSave()">
+        💬 WhatsApp
+      </button>` : `<button class="btn" style="width:100%;font-size:14px;padding:12px;background:#25D366;color:#fff;opacity:0.5" disabled>
+        💬 WhatsApp (No Phone)
+      </button>`}
+      <button class="btn" style="width:100%;font-size:14px;padding:12px;background:var(--s2);color:var(--muted)" onclick="closeAfterSave()">
+        ✖ Close
+      </button>
+    </div>
+  `;
+  window._lastSavedInv = inv;
+  modal.style.display = 'flex';
+}
+
+function closeAfterSave(){
+  document.getElementById('afterSaveModal').style.display = 'none';
+}
+
+function vbShareImage(inv){
+  thermalPrint(inv);
+  setTimeout(()=>{
+    const el = document.getElementById('thermalPrint');
+    if(!el){ toast('Print section not found','error'); return; }
+    el.style.display='block';
+    if(typeof html2canvas !== 'undefined'){
+      html2canvas(el,{scale:3,backgroundColor:'#fff'}).then(canvas=>{
+        el.style.display='none';
+        canvas.toBlob(blob=>{
+          if(!blob){ toast('Image banavi shakay nahi','error'); return; }
+          const file = new File([blob],'bill.png',{type:'image/png'});
+          if(navigator.canShare && navigator.canShare({files:[file]})){
+            navigator.share({files:[file],title:'Bill'}).catch(()=>{});
+          } else {
+            const a=document.createElement('a');
+            a.href=URL.createObjectURL(blob);
+            a.download='bill.png';
+            a.click();
+          }
+        },'image/png');
+      }).catch(()=>{ el.style.display='none'; toast('Share nathi thai','error'); });
+    } else {
+      el.style.display='none';
+      toast('html2canvas load nathi thayo','error');
+    }
+  }, 200);
+}
+
+function vbWhatsApp(inv, phone){
+  const billStr = String(inv.bill_number||'').padStart(4,'0');
+  const s = S.settings;
+  const msg = `*${s.shop_name||'Shop'}*\nBill #${billStr}\nCustomer: ${inv.customer_name||'Walk-in'}\nAmount: ₹${inv.total||0}\nDate: ${inv.bill_date||''}\n\n${s.thank_you||'Thank you!'}`;
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+  window.open(url,'_blank');
 }
 
 function vbPrint(){
