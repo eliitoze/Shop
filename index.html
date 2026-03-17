@@ -2405,48 +2405,57 @@ function buildVyaparMsg(items, t, customer, custPhone, billNum, dateStr, payment
   msg += bar + '\n';
 
   // ── ITEMS TABLE — monospace block ──
-  // Total width ~28 chars to fit mobile WA narrow screen
-  // SR=2  Name=14  Qty=4  Amt=6  = 2+1+14+1+4+1+6 = 29
+  // Layout: SR(2) space Name(unlimited wrap) | Qty+Amt right side
   let table = '';
-  table += padR('SR',2) + ' ' + padR('Name',14) + ' ' + padR('Qty',4) + ' ' + padL('Amt',6) + '\n';
-  table += '─────────────────────────────\n';
+  // Header — simple
+  table += 'SR Name\n';
+  table += '   Qty       Price    Amt\n';
+  table += '─────────────────────────\n';
 
   let totalQty = 0;
   items.forEach((item, i) => {
     const qty = parseInt(item.qty)||1;
     totalQty += qty;
-    const srS  = padR(String(i+1), 2);
-    const qtyS = padR(qty+'Pc', 4);
-    const amtS = padL(parseFloat(item.total).toFixed(0), 6);
 
-    // Name wrap — 14 chars per line, max 2 lines
+    // Full name — wrap every 20 chars
     const fullName = String(item.name);
-    const line1 = fullName.substring(0, 14);
-    const line2 = fullName.length > 14 ? fullName.substring(14, 28) : '';
+    const nameLines = [];
+    for(let pos=0; pos<fullName.length; pos+=20){
+      nameLines.push(fullName.substring(pos, pos+20));
+    }
 
-    table += srS + ' ' + padR(line1,14) + ' ' + qtyS + ' ' + amtS + '\n';
-    if(line2) table += '   ' + padR(line2,14) + '\n';
-    table += '   @' + parseFloat(item.price).toFixed(0) + '/pc\n';
+    // Line 1: SR + first name line
+    table += padR(String(i+1),2) + ' ' + nameLines[0] + '\n';
+    // Extra name lines if any
+    for(let n=1; n<nameLines.length; n++){
+      table += '   ' + nameLines[n] + '\n';
+    }
+    // Qty, Price, Amt on own line — right aligned
+    const qtyS   = padR(qty+'Pc', 4);
+    const priceS = padL(parseFloat(item.price).toFixed(0), 8);
+    const amtS   = padL(parseFloat(item.total).toFixed(0), 6);
+    table += '   ' + qtyS + '  ' + priceS + '  ' + amtS + '\n';
   });
 
-  table += '─────────────────────────────\n';
-  table += padR('Total',2+1+14) + ' ' + padR(totalQty+'Pc',4) + ' ' + padL(parseFloat(t.sub).toFixed(0),6) + '\n';
+  table += '─────────────────────────\n';
+  // Total row — "Total" puru word
+  table += 'Total  ' + padR(totalQty+'Pc',4) + padL(parseFloat(t.sub).toFixed(0),14) + '\n';
 
   msg += '```\n' + table + '```\n';
   msg += bar + '\n';
 
-  // ── TOTALS ──
+  // ── TOTALS — plain text, ek line ek jagya ──
   if(t.disc > 0){
-    msg += padR('Subtotal',18)          + padL(parseFloat(t.sub).toFixed(0),8) + '\n';
-    msg += padR('Disc('+t.disc+'%)',18) + padL('-'+parseFloat(t.discAmt).toFixed(0),8) + '\n';
+    msg += 'Subtotal:    *₹' + parseFloat(t.sub).toFixed(0) + '*\n';
+    msg += 'Discount(' + t.disc + '%): *-₹' + parseFloat(t.discAmt).toFixed(0) + '*\n';
   }
   if(parseFloat(t.gst)>0){
-    msg += padR('GST('+Math.round(t.gstRate)+'%)',18) + padL(parseFloat(t.gst).toFixed(0),8) + '\n';
+    msg += 'GST(' + Math.round(t.gstRate) + '%):    *₹' + parseFloat(t.gst).toFixed(0) + '*\n';
   }
-  msg += '*' + padR('Total',18)    + padL(parseFloat(t.grand).toFixed(0),8) + '*\n';
-  msg += padR('Received',18)       + padL(parseFloat(t.grand).toFixed(0),8) + '\n';
+  msg += '*Total:      ₹' + parseFloat(t.grand).toFixed(0) + '*\n';
+  msg += 'Received:    ₹' + parseFloat(t.grand).toFixed(0) + '\n';
   if(t.disc > 0){
-    msg += '*' + padR('You Saved',18) + padL(parseFloat(t.discAmt).toFixed(1),8) + '*\n';
+    msg += '*You Saved:  ₹' + parseFloat(t.discAmt).toFixed(1) + '*\n';
   }
   msg += bar + '\n';
 
