@@ -2380,14 +2380,13 @@ function thermalPrint(invData){
 // ===== WHATSAPP MESSAGE — PHOTO LAYOUT =====
 function buildVyaparMsg(items, t, customer, custPhone, billNum, dateStr, payment, note){
   const s = S.settings;
-  const pm = {cash:'Cash', upi:'UPI', card:'Card', credit:'Credit'};
   const billStr = String(billNum).padStart(4,'0');
-  const bar  = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
-  const thin = '─────────────────────────────────';
+  const bar  = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+  const thin = '----------------------------';
 
-  // pad helper: left-align with spaces
-  function padR(str, len){ str=String(str); return str.length>=len ? str : str+' '.repeat(len-str.length); }
-  function padL(str, len){ str=String(str); return str.length>=len ? str : ' '.repeat(len-str.length)+str; }
+  // pad helpers
+  function padR(str, len){ str=String(str); if(str.length>=len) return str.substring(0,len); return str+' '.repeat(len-str.length); }
+  function padL(str, len){ str=String(str); if(str.length>=len) return str.substring(0,len); return ' '.repeat(len-str.length)+str; }
 
   let msg = '';
 
@@ -2399,53 +2398,50 @@ function buildVyaparMsg(items, t, customer, custPhone, billNum, dateStr, payment
   if(s.gst_number) msg += 'GSTIN: ' + s.gst_number + '\n';
   msg += bar + '\n';
 
-  // ── BILL TO / REF NO (2 column) ──
-  msg += '*Bill To:*' + '                  ' + '*Ref No:*\n';
-  msg += '*' + customer + '*' + '                  ' + '*' + billStr + '*\n';
+  // ── BILL INFO ──
+  msg += 'Bill To:  *' + customer + '*\n';
   if(custPhone) msg += '📞 ' + custPhone + '\n';
-  msg += '\n';
-  msg += 'Date of Issue:  *' + dateStr + '*\n';
-  if(custPhone) msg += 'Mobile No.:  *' + custPhone + '*\n';
+  msg += 'Ref No:   *' + billStr + '*\n';
+  msg += 'Date:     *' + dateStr + '*\n';
   msg += bar + '\n';
 
-  // ── ITEMS TABLE HEADER ──
-  msg += '*SR  Name                  Qty   Price  Amt*\n';
-  msg += thin + '\n';
+  // ── ITEMS TABLE — monospace block ──
+  // Col widths: SR=3, Name=18, Qty=5, Price=6, Amt=6  total=38
+  let table = '';
+  table += padR('SR',3) + ' ' + padR('Name',18) + ' ' + padR('Qty',5) + ' ' + padL('Price',6) + ' ' + padL('Amt',6) + '\n';
+  table += thin + '\n';
 
-  // ── ITEMS ──
   let totalQty = 0;
   items.forEach((item, i) => {
     const qty = parseInt(item.qty)||1;
     totalQty += qty;
-    const sr    = padR(String(i+1), 4);
-    const name  = padR(item.name, 22);
-    const qtyS  = padR(qty+'Pcs', 6);
-    const price = padL(parseFloat(item.price).toFixed(0), 6);
-    const amt   = padL(parseFloat(item.total).toFixed(0), 6);
-    msg += sr + name + qtyS + price + '  ' + amt + '\n';
+    const srS    = padR(String(i+1), 3);
+    const nameS  = padR(String(item.name).substring(0,18), 18);
+    const qtyS   = padR(qty+'Pc', 5);
+    const priceS = padL(parseFloat(item.price).toFixed(0), 6);
+    const amtS   = padL(parseFloat(item.total).toFixed(0), 6);
+    table += srS + ' ' + nameS + ' ' + qtyS + ' ' + priceS + ' ' + amtS + '\n';
   });
 
-  msg += thin + '\n';
+  table += thin + '\n';
+  table += padR('Total',3) + ' ' + padR('',18) + ' ' + padR(String(totalQty)+'Pc',5) + ' ' + padL('',6) + ' ' + padL(parseFloat(t.sub).toFixed(0),6) + '\n';
 
-  // ── TOTAL ROW (like photo) ──
-  const totalLabel = padR('Total', 26);
-  const totalQtyS  = padR(String(totalQty), 6);
-  const totalAmt   = padL(parseFloat(t.sub).toFixed(0), 6);
-  msg += '*' + totalLabel + totalQtyS + '       ' + totalAmt + '*\n';
+  // Wrap in monospace — WhatsApp ma exact alignment
+  msg += '```\n' + table + '```\n';
   msg += bar + '\n';
 
-  // ── TOTALS SECTION ──
+  // ── TOTALS ──
   if(t.disc > 0){
-    msg += padR('Subtotal', 24) + padL(parseFloat(t.sub).toFixed(0), 8) + '\n';
-    msg += padR('Discount('+t.disc+'%)', 24) + padL('-'+parseFloat(t.discAmt).toFixed(0), 8) + '\n';
+    msg += padR('Subtotal',20)    + padL(parseFloat(t.sub).toFixed(0),8) + '\n';
+    msg += padR('Discount('+t.disc+'%)',20) + padL('-'+parseFloat(t.discAmt).toFixed(0),8) + '\n';
   }
   if(parseFloat(t.gst)>0){
-    msg += padR('GST('+Math.round(t.gstRate)+'%)', 24) + padL(parseFloat(t.gst).toFixed(0), 8) + '\n';
+    msg += padR('GST('+Math.round(t.gstRate)+'%)',20) + padL(parseFloat(t.gst).toFixed(0),8) + '\n';
   }
-  msg += '*' + padR('Total', 24) + padL(parseFloat(t.grand).toFixed(0), 8) + '*\n';
-  msg += padR('Received', 24) + padL(parseFloat(t.grand).toFixed(0), 8) + '\n';
+  msg += '*' + padR('Total',20)    + padL(parseFloat(t.grand).toFixed(0),8) + '*\n';
+  msg += padR('Received',20)       + padL(parseFloat(t.grand).toFixed(0),8) + '\n';
   if(t.disc > 0){
-    msg += '*' + padR('You Saved', 24) + padL(parseFloat(t.discAmt).toFixed(1), 8) + '*\n';
+    msg += '*' + padR('You Saved',20) + padL(parseFloat(t.discAmt).toFixed(1),8) + '*\n';
   }
   msg += bar + '\n';
 
