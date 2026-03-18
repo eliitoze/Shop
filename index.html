@@ -17,17 +17,18 @@
 <style>
 /* ===== THERMAL PRINT 58mm ===== */
 @media print {
-  * { visibility: hidden !important; }
+  body * { visibility: hidden !important; }
   #thermalPrint, #thermalPrint * { visibility: visible !important; }
   #thermalPrint {
     position: fixed !important;
     top: 0 !important; left: 0 !important;
-    width: 100% !important;
+    width: 58mm !important;
     display: block !important;
+    visibility: visible !important;
   }
   @page {
     size: 58mm auto;
-    margin: 2mm 1mm;
+    margin: 1mm 0mm;
   }
 }
 
@@ -2394,8 +2395,13 @@ function buildBillHTML(d, forImage=false){
 function thermalPrint(invData){
   const d = getBillData(invData);
   if(!d) return;
-  document.getElementById('thermalPrint').innerHTML = buildBillHTML(d, false);
-  window.print();
+  const el = document.getElementById('thermalPrint');
+  el.innerHTML = buildBillHTML(d, false);
+  el.style.display = 'block';
+  setTimeout(()=>{
+    window.print();
+    setTimeout(()=>{ el.style.display='none'; }, 1000);
+  }, 300);
 }
 
 // ===== WHATSAPP MESSAGE — PHOTO LAYOUT =====
@@ -3907,27 +3913,42 @@ function handleImport(e){
         const r=rows[i].map(c=>String(c).toLowerCase());
         if(r.some(c=>c.includes('name')||c.includes('price'))){hRow=i;break;}
       }
-      if(hRow===-1){toast('Header not found!','error');return;}
+      if(hRow===-1){toast('Header row na maliyo!','error');return;}
       const h=rows[hRow].map(x=>String(x).toLowerCase().trim());
-      const ni=h.findIndex(x=>x.includes('name'));
-      const pi=h.findIndex(x=>x.includes('sale')||x.includes('price')&&!x.includes('cost'));
-      const ci=h.findIndex(x=>x.includes('cost'));
-      const si=h.findIndex(x=>x.includes('stock')&&!x.includes('min'));
-      const mi=h.findIndex(x=>x.includes('min'));
-      const ski=h.findIndex(x=>x.includes('sku')||x.includes('code'));
-      const cati=h.findIndex(x=>x.includes('cat'));
+      const ni   = h.findIndex(x=>x.includes('name'));
+      const pi   = h.findIndex(x=>x.includes('sale'));
+      const ci   = h.findIndex(x=>x.includes('cost')||x.includes('purchase'));
+      const si   = h.findIndex(x=>(x.includes('qty')||x.includes('stock'))&&!x.includes('min'));
+      const mi   = h.findIndex(x=>x.includes('min'));
+      const ski  = h.findIndex(x=>x.includes('sku')||x.includes('code'));
+      const cati = h.findIndex(x=>x.includes('cat'));
       S.importData=[];
       for(let i=hRow+1;i<rows.length;i++){
         const r=rows[i];
         const name=ni>=0?String(r[ni]||'').trim():'';
-        if(!name)continue;
-        const price=pi>=0?parseFloat(r[pi])||0:0;
-        if(!price)continue;
-        S.importData.push({name,sku:ski>=0?String(r[ski]||'').trim():'',price,cost:ci>=0?parseFloat(r[ci])||0:0,stock:si>=0?parseInt(r[si])||0:0,min_stock:mi>=0?parseInt(r[mi])||5:5,category:cati>=0?String(r[cati]||'').trim():'Imported'});
+        if(!name) continue;
+        const price = pi>=0 ? parseFloat(r[pi])||0 : 0;
+        const cost  = ci>=0 ? parseFloat(r[ci])||0 : 0;
+        const stock = si>=0 ? parseInt(r[si])||0   : 0;
+        S.importData.push({
+          name,
+          sku:       ski>=0  ? String(r[ski]||'').trim() : '',
+          price,
+          cost,
+          stock,
+          min_stock: mi>=0   ? parseInt(r[mi])||5       : 5,
+          category:  cati>=0 ? String(r[cati]||'').trim(): 'Jewellery'
+        });
       }
-      if(!S.importData.length){toast('No valid data!','error');return;}
-      document.getElementById('importCount').textContent=S.importData.length+' products ready';
-      document.getElementById('importPreview').innerHTML=`<table><thead><tr><th>Name</th><th>Price</th><th>Cost</th><th>Stock</th><th>Margin</th></tr></thead><tbody>${S.importData.map(p=>{const pct=p.cost>0?((p.price-p.cost)/p.cost*100).toFixed(1):'-';const cls=parseFloat(pct)>20?'badge-green':parseFloat(pct)>10?'badge-yellow':'badge-red';return`<tr><td>${p.name}</td><td>₹${p.price}</td><td>${p.cost?'₹'+p.cost:'—'}</td><td>${p.stock}</td><td><span class="badge ${cls}">${pct}%</span></td></tr>`;}).join('')}</tbody></table>`;
+      if(!S.importData.length){toast('Koi valid data nathi!','error');return;}
+      document.getElementById('importCount').textContent=S.importData.length+' products ready to import';
+      document.getElementById('importPreview').innerHTML=`
+        <table><thead><tr><th>Item Name</th><th>Sale Price</th><th>Cost Price</th><th>Qty</th><th>Margin</th></tr></thead>
+        <tbody>${S.importData.map(p=>{
+          const pct=p.cost>0?((p.price-p.cost)/p.cost*100).toFixed(1):'-';
+          const cls=parseFloat(pct)>20?'badge-green':parseFloat(pct)>10?'badge-yellow':'badge-red';
+          return'<tr><td>'+p.name+'</td><td>'+(p.price?'\u20b9'+p.price:'\u2014')+'</td><td>'+(p.cost?'\u20b9'+p.cost:'\u2014')+'</td><td>'+p.stock+'</td><td><span class="badge '+(pct!=='-'?cls:'')+'">'+(pct!=='-'?pct+'%':'\u2014')+'</span></td></tr>';
+        }).join('')}</tbody></table>`;
       document.getElementById('importCard').style.display='block';
     } catch(err){toast('Error: '+err.message,'error');}
   };
@@ -3947,7 +3968,7 @@ async function confirmImport(){
     document.getElementById('importCard').style.display='none';
     document.getElementById('xlFile').value='';
     S.importData=[];
-    toast(`✅ Added ${added}, Updated ${updated}!`,'success');
+    toast(`\u2705 Added ${added}, Updated ${updated}!`,'success');
   } catch(e){ toast('Import error: '+e.message,'error'); }
 }
 
@@ -3958,16 +3979,19 @@ function cancelImport(){
 }
 
 function dlTemplate(){
-  const headers=['Name','SKU/Code','Sale Price','Cost Price','Stock','Min Stock','Category'];
-  const sample=[['Tea (500g)','TEA001',120,90,50,10,'Grocery'],['Sugar (1kg)','SUG001',45,38,100,20,'Grocery'],['','','','','','','']];
+  const headers=['Item Name','SKU/Code','Sale Price','Cost/Purchase Price','Qty/Stock','Min Stock','Category'];
+  const sample=[
+    ['(P118090R650) IMITATION CHAIN','P118090R650',550,400,10,2,'Jewellery'],
+    ['SILVER RING 925','SR001',1200,800,5,1,'Silver'],
+    ['GOLD PLATED BANGLE','GPB001',850,600,8,2,'Imitation'],
+  ];
   const ws=XLSX.utils.aoa_to_sheet([headers,...sample]);
-  ws['!cols']=[{wch:25},{wch:12},{wch:14},{wch:14},{wch:10},{wch:12},{wch:15}];
+  ws['!cols']=[{wch:30},{wch:14},{wch:14},{wch:20},{wch:12},{wch:12},{wch:15}];
   const wb2=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb2,ws,'Products');
-  XLSX.writeFile(wb2,'shopbill_template.xlsx');
-  toast('✅ Template downloaded!','success');
+  XLSX.writeFile(wb2,'eliitoze_import_template.xlsx');
+  toast('\u2705 Template downloaded!','success');
 }
-
 // ===== MODAL =====
 function closeM(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.overlay').forEach(m=>{ m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }); });
