@@ -1002,6 +1002,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" id="btnSelectAll" onclick="toggleSelectAll()" style="display:none">☑ Select All</button>
           <button class="btn btn-danger btn-sm" id="btnBulkDelete" onclick="bulkDeleteProds()" style="display:none">🗑 Delete Selected</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAllProds()" style="background:#7f1d1d">🗑 Delete All</button>
           <button class="btn btn-yellow btn-sm" id="btnBulkMode" onclick="toggleBulkMode()">☐ Select</button>
           <button class="btn btn-blue btn-sm" onclick="showPage('import',document.querySelectorAll('.nav-item')[6])">⇪ Excel</button>
           <button class="btn btn-primary" onclick="openAddProd()">+ New</button>
@@ -2279,114 +2280,115 @@ function buildBillHTML(d, forImage=false){
   const terms = (s.terms||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
   const totalQty = d.items.reduce((sum,i)=>sum+parseInt(i.qty||1),0);
 
-  // Font sizes — print ma Vyapar jevo bold & clear
-  const w    = forImage ? '340px' : '54mm';
-  const p    = forImage ? '14px'  : '2mm';
-  const fsXl = forImage ? '15px'  : '11px';   // shop name
-  const fsLg = forImage ? '13px'  : '10px';   // customer name, total
-  const fs   = forImage ? '12px'  : '9.5px';  // normal text
-  const fsSm = forImage ? '11px'  : '9px';    // table, invoice info
-  const fsXs = forImage ? '10px'  : '8.5px';  // terms, address
-  const fw   = '700';   // sab bold
-  const fwN  = '600';   // normal rows - thodi bold
+  const w    = forImage ? '340px' : '52mm';
+  const p    = forImage ? '14px'  : '1.5mm';
+  const fsXl = forImage ? '15px'  : '10.5px';
+  const fsLg = forImage ? '13px'  : '9.5px';
+  const fs   = forImage ? '12px'  : '9px';
+  const fsSm = forImage ? '11px'  : '8.5px';
+  const fsXs = forImage ? '10px'  : '8px';
+  const fw   = '700';
+  const fwN  = '600';
   const center = 'text-align:center;';
-  const dash = `<div style="border-top:1px dashed #000;margin:4px 0"></div>`;
+  const dash = `<div style="border-top:1px dashed #000;margin:3px 0"></div>`;
 
-  // Terms — numbered lines
+  // Terms
   const termsHTML = terms ? (() => {
     const parts = terms.split(/(?=\(\d+\))/);
     return parts.map(pt=>pt.trim()).filter(Boolean)
       .map(pt=>`<div style="font-size:${fsXs};font-weight:${fwN};line-height:1.7;text-align:center">${pt}</div>`).join('');
   })() : '';
 
-  // Items rows
+  // Items rows — 4 columns only (#, Name, Price, Amt) — MRP alag line
   let rows = '';
   d.items.forEach((item,i)=>{
-    const mrp = item.mrp || item.price;
+    const mrp = parseFloat(item.mrp||item.price).toFixed(0);
+    const price = parseFloat(item.price).toFixed(0);
+    const amt = parseFloat(item.total).toFixed(0);
     rows += `
     <tr>
-      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;vertical-align:top">${i+1}</td>
-      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;vertical-align:top;word-break:break-word;max-width:${forImage?'130px':'30mm'}">${item.name}</td>
-      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${parseFloat(mrp).toFixed(0)}</td>
-      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${parseFloat(item.price).toFixed(0)}</td>
-      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${parseFloat(item.total).toFixed(0)}</td>
+      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;vertical-align:top;white-space:nowrap">${i+1}</td>
+      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;vertical-align:top;word-break:break-word">${item.name}</td>
+      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${price}</td>
+      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${amt}</td>
     </tr>
     <tr>
       <td></td>
-      <td colspan="4" style="font-size:${fsSm};font-weight:${fwN};padding:0 1px 4px">${item.qty}Pcs</td>
+      <td colspan="3" style="font-size:${fsXs};font-weight:${fwN};padding:0 1px 3px">${item.qty}Pcs &nbsp; MRP:${mrp}</td>
     </tr>`;
   });
 
-  const amtStyle = `font-size:${fs};font-weight:${fw};padding:2px 0;display:flex;justify-content:space-between`;
+  // Totals — TABLE format (no flex) — right side nahi katay
+  const totRow = (label, val, bold=false) =>
+    `<tr>
+      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:1px 1px">${label}</td>
+      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:1px 1px;text-align:center">:</td>
+      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:1px 1px;text-align:right">${val}</td>
+    </tr>`;
 
-  return `<div style="width:${w};background:#fff;color:#000;font-family:'Courier New',Courier,monospace;font-weight:${fw};padding:${p};box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+  return `<div style="width:${w};background:#fff;color:#000;font-family:'Courier New',Courier,monospace;font-weight:${fw};padding:${p};box-sizing:border-box;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact">
 
     <!-- SHOP HEADER -->
-    <div style="${center}font-size:${fsXl};font-weight:${fw};letter-spacing:0.5px;line-height:1.4">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
+    <div style="${center}font-size:${fsXl};font-weight:${fw};letter-spacing:0.3px;line-height:1.4">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
     ${s.address?`<div style="${center}font-size:${fsXs};font-weight:${fwN};line-height:1.6;margin-top:2px">${s.address.replace(/\n/g,'<br>')}</div>`:''}
     ${s.email?`<div style="${center}font-size:${fsXs};font-weight:${fwN};margin-top:1px">${s.email}</div>`:''}
     ${s.phone?`<div style="${center}font-size:${fsXs};font-weight:${fwN}">Ph: ${s.phone}</div>`:''}
     ${s.gst_number?`<div style="${center}font-size:${fsXs};font-weight:${fwN}">GSTIN: ${s.gst_number}</div>`:''}
     ${dash}
 
-    <!-- INVOICE INFO -->
+    <!-- INVOICE INFO — alag alag lines ma, nahi katay -->
     <div style="${center}font-size:${fs};font-weight:${fw};margin:2px 0">Invoice</div>
-    <div style="display:flex;justify-content:space-between;font-size:${fsSm};font-weight:${fw};margin:2px 0">
-      <span>Invoice No.: ${billStr}</span>
-      <span>Date: ${d.dateStr||''}</span>
-    </div>
-    <div style="text-align:right;font-size:${fsSm};font-weight:${fw};margin:1px 0">Time: ${d.billTime||''}</div>
-    ${d.custPhone?`<div style="text-align:right;font-size:${fsSm};font-weight:${fw};margin:1px 0">MOBILE NO.: ${d.custPhone}</div>`:''}
+    <div style="font-size:${fsSm};font-weight:${fw};margin:1px 0">Invoice No.: ${billStr}</div>
+    <div style="font-size:${fsSm};font-weight:${fw};margin:1px 0">Date: ${d.dateStr||''} &nbsp; Time: ${d.billTime||''}</div>
+    ${d.custPhone?`<div style="font-size:${fsSm};font-weight:${fw};margin:1px 0">MOBILE NO.: ${d.custPhone}</div>`:''}
     ${dash}
 
     <!-- CUSTOMER -->
-    <div style="${center}font-size:${fsLg};font-weight:${fw};margin:4px 0;letter-spacing:0.3px">${d.customer||'Walk-in'}</div>
+    <div style="${center}font-size:${fsLg};font-weight:${fw};margin:3px 0;letter-spacing:0.3px">${d.customer||'Walk-in'}</div>
     ${dash}
 
-    <!-- ITEMS TABLE -->
-    <table style="width:100%;border-collapse:collapse">
+    <!-- ITEMS TABLE — 4 col -->
+    <table style="width:100%;border-collapse:collapse;table-layout:fixed">
       <thead>
         <tr>
-          <th style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:left">#</th>
-          <th style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:left">Item Name</th>
-          <th style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right">MRP</th>
-          <th style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right">Price</th>
-          <th style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right">Amount</th>
+          <th style="font-size:${fsXs};font-weight:${fw};padding:1px;text-align:left;width:12px">#</th>
+          <th style="font-size:${fsXs};font-weight:${fw};padding:1px;text-align:left">Item Name</th>
+          <th style="font-size:${fsXs};font-weight:${fw};padding:1px;text-align:right;width:32px">Price</th>
+          <th style="font-size:${fsXs};font-weight:${fw};padding:1px;text-align:right;width:32px">Amt</th>
         </tr>
       </thead>
       <tbody>
-        ${dash.replace('<div','<tr><td colspan="5"><div').replace('</div>','</div></td></tr>')}
+        ${dash.replace('<div','<tr><td colspan="4"><div').replace('</div>','</div></td></tr>')}
         ${rows}
-        ${dash.replace('<div','<tr><td colspan="5"><div').replace('</div>','</div></td></tr>')}
+        ${dash.replace('<div','<tr><td colspan="4"><div').replace('</div>','</div></td></tr>')}
       </tbody>
     </table>
 
     <!-- QTY SUMMARY -->
-    <div style="display:flex;justify-content:space-between;font-size:${fsSm};font-weight:${fw};margin:3px 0">
-      <span>Qty: ${totalQty}</span>
-      <span>Items: ${d.items.length}</span>
-      <span>${parseFloat(d.t.sub).toFixed(0)}</span>
-    </div>
+    <div style="font-size:${fsSm};font-weight:${fw};margin:2px 0">Qty: ${totalQty} &nbsp;&nbsp; Items: ${d.items.length} &nbsp;&nbsp; ${parseFloat(d.t.sub).toFixed(0)}</div>
     ${dash}
 
-    <!-- TOTALS -->
-    <div style="${amtStyle}"><span>Total</span><span>:    ${parseFloat(d.t.sub).toFixed(0)}</span></div>
-    ${d.t.disc>0?`<div style="${amtStyle}"><span>Discount(${d.t.disc}%)</span><span>:    -${parseFloat(d.t.discAmt).toFixed(0)}</span></div>`:''}
-    ${parseFloat(d.t.gst)>0?`<div style="${amtStyle}"><span>GST(${Math.round(d.t.gstRate)}%)</span><span>:    ${parseFloat(d.t.gst).toFixed(0)}</span></div>`:''}
-    <div style="${amtStyle}"><span>Received</span><span>:    ${parseFloat(d.t.grand).toFixed(0)}</span></div>
-    <div style="${amtStyle}"><span>Balance</span><span>:    0</span></div>
-    ${d.t.disc>0?`${dash}<div style="${amtStyle}"><span>You Saved</span><span>:    ${parseFloat(d.t.discAmt).toFixed(0)}</span></div>`:''}
+    <!-- TOTALS — table format, amount nahi katay -->
+    <table style="width:100%;border-collapse:collapse">
+      ${totRow('Total', parseFloat(d.t.sub).toFixed(0), true)}
+      ${d.t.disc>0 ? totRow('Discount('+d.t.disc+'%)', '-'+parseFloat(d.t.discAmt).toFixed(0)) : ''}
+      ${parseFloat(d.t.gst)>0 ? totRow('GST('+Math.round(d.t.gstRate)+'%)', parseFloat(d.t.gst).toFixed(0)) : ''}
+      ${totRow('Received', parseFloat(d.t.grand).toFixed(0))}
+      ${totRow('Balance', '0')}
+      ${d.t.disc>0 ? totRow('You Saved', parseFloat(d.t.discAmt).toFixed(0), true) : ''}
+    </table>
     ${dash}
 
     ${d.note?`<div style="font-size:${fsXs};font-weight:${fwN};margin:2px 0">Note: ${d.note}</div>${dash}`:''}
 
     <!-- TERMS -->
-    ${termsHTML?`<div style="${center}font-size:${fs};font-weight:${fw};margin:4px 0">Terms & Conditions</div>${termsHTML}${dash}`:''}
+    ${termsHTML?`<div style="${center}font-size:${fs};font-weight:${fw};margin:3px 0">Terms &amp; Conditions</div>${termsHTML}${dash}`:''}
 
     <!-- FOOTER -->
-    <div style="${center}font-size:${fsSm};font-weight:${fw};margin-top:4px">${s.thank_you||'Happy to help you always.... Visit again.'}</div>
+    <div style="${center}font-size:${fsSm};font-weight:${fw};margin-top:3px">${s.thank_you||'Happy to help you always.... Visit again.'}</div>
     <div style="height:${forImage?'10px':'8mm'}"></div>
   </div>`;
+}
 
 // ===== 58mm THERMAL PRINT =====
 function thermalPrint(invData){
@@ -3212,6 +3214,23 @@ function toggleSelectAll(){
   }
   document.getElementById('bulkSelCount').textContent = window._selectedProds.size + ' selected';
   renderProds();
+}
+
+async function deleteAllProds(){
+  if(!S.products.length){ toast('Koi products nathi!','error'); return; }
+  if(!confirm('⚠️ બધા '+S.products.length+' products delete karva chho? Aa undone nahi thay!')) return;
+  if(!confirm('Sure chho? Badha products delete thai jashe!')) return;
+  let done = 0;
+  const ids = S.products.map(p=>p.id);
+  for(const id of ids){
+    try{
+      await api(`products?id=eq.${id}`,'DELETE');
+      done++;
+    } catch(e){}
+  }
+  S.products = [];
+  saveOffline(); renderProds(); populateSels(); updateDash();
+  toast('✅ '+done+' products deleted!','success');
 }
 
 async function bulkDeleteProds(){
