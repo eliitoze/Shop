@@ -17,14 +17,18 @@
 <style>
 /* ===== THERMAL PRINT 58mm ===== */
 @media print {
-  body * { visibility: hidden !important; }
-  #thermalPrint, #thermalPrint * { visibility: visible !important; }
+  body * { visibility: hidden !important; display:none !important; }
+  #thermalPrint, #thermalPrint * { 
+    visibility: visible !important; 
+    display: block !important;
+  }
   #thermalPrint {
     position: fixed !important;
-    top: 0 !important; left: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
     width: 58mm !important;
-    display: block !important;
-    visibility: visible !important;
+    z-index: 99999 !important;
+    background: #fff !important;
   }
   @page {
     size: 58mm auto;
@@ -1407,9 +1411,6 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
   </div>
 </div>
 
-<!-- THERMAL RECEIPT -->
-<div id="thermalPrint"></div>
-
 <!-- HIDDEN BILL CANVAS — for image generation -->
 <div id="billCanvas" style="position:absolute;left:-9999px;top:0;background:#fff;width:380px;padding:0;visibility:hidden;pointer-events:none"></div>
 
@@ -2397,10 +2398,14 @@ function thermalPrint(invData){
   const el = document.getElementById('thermalPrint');
   el.innerHTML = buildBillHTML(d, false);
   el.style.display = 'block';
+  el.style.visibility = 'visible';
   setTimeout(()=>{
     window.print();
-    setTimeout(()=>{ el.style.display='none'; }, 1000);
-  }, 300);
+    setTimeout(()=>{ 
+      el.style.display = 'none';
+      el.style.visibility = 'hidden';
+    }, 1500);
+  }, 400);
 }
 
 // ===== WHATSAPP MESSAGE — PHOTO LAYOUT =====
@@ -4539,5 +4544,8 @@ function vbPrint(){
   <div class="modal" style="max-width:360px;padding:24px" id="afterSaveBody"></div>
 </div>
 </div><!-- end mainApp -->
+
+<!-- THERMAL RECEIPT — mainApp ni bahar, print ma properly show thay -->
+<div id="thermalPrint" style="display:none;position:fixed;left:0;top:0;z-index:9999;background:#fff"></div>
 </body>
 </html>
