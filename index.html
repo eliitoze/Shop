@@ -2296,7 +2296,7 @@ function buildBillHTML(d, forImage=false){
   const termsHTML = terms ? (() => {
     const parts = terms.split(/(?=\(\d+\))/);
     return parts.map(pt=>pt.trim()).filter(Boolean)
-      .map(pt=>`<div style="font-size:${fsXs};font-weight:${fwN};line-height:1.7;text-align:center">${pt}</div>`).join('');
+      .map(pt=>`<div style="font-size:${fsXs};font-weight:${fwN};line-height:1.7;text-align:center;word-break:break-word;overflow-wrap:break-word">${pt}</div>`).join('');
   })() : '';
 
   // Items rows — 4 columns only (#, Name, Price, Amt) — MRP alag line
@@ -2318,15 +2318,15 @@ function buildBillHTML(d, forImage=false){
     </tr>`;
   });
 
-  // Totals — TABLE format (no flex) — right side nahi katay
+  // Totals — TABLE format with fixed column widths
   const totRow = (label, val, bold=false) =>
     `<tr>
-      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:1px 1px">${label}</td>
-      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:1px 1px;text-align:center">:</td>
-      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:1px 1px;text-align:right">${val}</td>
+      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:2px 1px;width:60%">${label}</td>
+      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:2px 1px;text-align:center;width:8%">:</td>
+      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:2px 1px;text-align:right;width:32%">${val}</td>
     </tr>`;
 
-  return `<div style="width:${w};background:#fff;color:#000;font-family:'Courier New',Courier,monospace;font-weight:${fw};padding:${p};box-sizing:border-box;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+  return `<div style="width:${w};background:#fff;color:#000;font-family:'Courier New',Courier,monospace;font-weight:${fw};padding:${p};box-sizing:border-box;word-break:break-word;-webkit-print-color-adjust:exact;print-color-adjust:exact">
 
     <!-- SHOP HEADER -->
     <div style="${center}font-size:${fsXl};font-weight:${fw};letter-spacing:0.3px;line-height:1.4">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
@@ -2368,8 +2368,8 @@ function buildBillHTML(d, forImage=false){
     <div style="font-size:${fsSm};font-weight:${fw};margin:2px 0">Qty: ${totalQty} &nbsp;&nbsp; Items: ${d.items.length} &nbsp;&nbsp; ${parseFloat(d.t.sub).toFixed(0)}</div>
     ${dash}
 
-    <!-- TOTALS — table format, amount nahi katay -->
-    <table style="width:100%;border-collapse:collapse">
+    <!-- TOTALS — fixed width columns -->
+    <table style="width:100%;border-collapse:collapse;table-layout:fixed">
       ${totRow('Total', parseFloat(d.t.sub).toFixed(0), true)}
       ${d.t.disc>0 ? totRow('Discount('+d.t.disc+'%)', '-'+parseFloat(d.t.discAmt).toFixed(0)) : ''}
       ${parseFloat(d.t.gst)>0 ? totRow('GST('+Math.round(d.t.gstRate)+'%)', parseFloat(d.t.gst).toFixed(0)) : ''}
@@ -2379,13 +2379,13 @@ function buildBillHTML(d, forImage=false){
     </table>
     ${dash}
 
-    ${d.note?`<div style="font-size:${fsXs};font-weight:${fwN};margin:2px 0">Note: ${d.note}</div>${dash}`:''}
+    ${d.note?`<div style="font-size:${fsXs};font-weight:${fwN};margin:2px 0;word-break:break-word">Note: ${d.note}</div>${dash}`:''}
 
-    <!-- TERMS -->
+    <!-- TERMS — word-break fix -->
     ${termsHTML?`<div style="${center}font-size:${fs};font-weight:${fw};margin:3px 0">Terms &amp; Conditions</div>${termsHTML}${dash}`:''}
 
     <!-- FOOTER -->
-    <div style="${center}font-size:${fsSm};font-weight:${fw};margin-top:3px">${s.thank_you||'Happy to help you always.... Visit again.'}</div>
+    <div style="${center}font-size:${fsSm};font-weight:${fw};margin-top:3px;word-break:break-word">${s.thank_you||'Happy to help you always.... Visit again.'}</div>
     <div style="height:${forImage?'10px':'8mm'}"></div>
   </div>`;
 }
