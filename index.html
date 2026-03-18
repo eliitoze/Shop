@@ -869,6 +869,12 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
 
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-size:13px;color:var(--muted);font-weight:600">Today's Overview</span>
+        <button onclick="toggleDashPrivacy()" id="dashPrivacyBtn" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--muted);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px">
+          👁 Hide
+        </button>
+      </div>
       <div class="stats-grid">
         <div class="stat-card green"><div class="stat-label">Today Sales</div><div class="stat-value" id="d-sale">₹0</div><div class="stat-sub"><span id="d-bills">0</span> bills</div></div>
         <div class="stat-card yellow"><div class="stat-label">Today Profit</div><div class="stat-value" id="d-profit">🔐</div><div class="stat-sub" id="d-margin">PIN protected</div></div>
@@ -2306,25 +2312,26 @@ function buildBillHTML(d, forImage=false){
     const mrp = parseFloat(item.mrp||item.price).toFixed(0);
     const price = parseFloat(item.price).toFixed(0);
     const amt = parseFloat(item.total).toFixed(0);
+    const tdBase = `font-family:'Courier New',Courier,monospace;font-size:${fsSm};font-weight:${fw};padding:2px 1px;vertical-align:top`;
     rows += `
     <tr>
-      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;vertical-align:top;white-space:nowrap">${i+1}</td>
-      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;vertical-align:top;word-break:break-word">${item.name}</td>
-      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${price}</td>
-      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${amt}</td>
+      <td style="${tdBase};white-space:nowrap">${i+1}</td>
+      <td style="${tdBase};word-break:break-word">${item.name}</td>
+      <td style="${tdBase};text-align:right;white-space:nowrap">${price}</td>
+      <td style="${tdBase};text-align:right;white-space:nowrap">${amt}</td>
     </tr>
     <tr>
       <td></td>
-      <td colspan="3" style="font-size:${fsXs};font-weight:${fwN};padding:0 1px 3px">${item.qty}Pcs &nbsp; MRP:${mrp}</td>
+      <td colspan="3" style="font-family:'Courier New',Courier,monospace;font-size:${fsXs};font-weight:${fwN};padding:0 1px 3px">${item.qty}Pcs &nbsp; MRP:${mrp}</td>
     </tr>`;
   });
 
-  // Totals — TABLE format with fixed column widths
+  // Totals — label left, colon middle, amount LEFT side of right column
   const totRow = (label, val, bold=false) =>
     `<tr>
-      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:2px 1px;width:60%">${label}</td>
-      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:2px 1px;text-align:center;width:8%">:</td>
-      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:2px 1px;text-align:right;width:32%">${val}</td>
+      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:2px 1px;width:55%">${label}</td>
+      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:2px 4px;width:5%;text-align:center">:</td>
+      <td style="font-size:${fs};font-weight:${bold?fw:fwN};padding:2px 1px;width:40%;text-align:left">${val}</td>
     </tr>`;
 
   return `<div style="width:${w};background:#fff;color:#000;font-family:'Courier New',Courier,monospace;font-weight:${fw};padding:${p};box-sizing:border-box;word-break:break-word;-webkit-print-color-adjust:exact;print-color-adjust:exact">
@@ -3489,21 +3496,42 @@ function resendWA(id){
 }
 
 // ===== DASHBOARD =====
+window._dashPrivacy = false;
+
+function toggleDashPrivacy(){
+  window._dashPrivacy = !window._dashPrivacy;
+  const btn = document.getElementById('dashPrivacyBtn');
+  if(window._dashPrivacy){
+    btn.innerHTML = '🙈 Show';
+    btn.style.color = 'var(--accent)';
+  } else {
+    btn.innerHTML = '👁 Hide';
+    btn.style.color = 'var(--muted)';
+  }
+  updateDash();
+}
+
 function updateDash(){
+  const priv = window._dashPrivacy || false;
+  const mask = '••••';
   const today=new Date().toLocaleDateString('en-IN');
   const todayInv=S.invoices.filter(i=>i.bill_date===today);
   const sale=todayInv.reduce((s,i)=>s+parseFloat(i.total||0),0);
   const profit=todayInv.reduce((s,i)=>s+parseFloat(i.profit||0),0);
   const margin=sale>0?((profit/sale)*100).toFixed(1):0;
-  document.getElementById('d-sale').textContent='₹'+sale.toFixed(0);
-  document.getElementById('d-bills').textContent=todayInv.length;
+  document.getElementById('d-sale').textContent = priv ? mask : '₹'+sale.toFixed(0);
+  document.getElementById('d-bills').textContent = priv ? mask : todayInv.length;
   document.getElementById('d-profit').textContent='🔐';
   document.getElementById('d-margin').textContent='PIN protected';
   document.getElementById('d-prods').textContent=S.products.length;
   const low=S.products.filter(p=>p.stock<=p.min_stock);
   document.getElementById('d-low').textContent=low.length;
   const rd=document.getElementById('d-recent');
-  rd.innerHTML=!S.invoices.length?'<div class="empty"><div class="ei">🧾</div><p>No bills</p></div>':'<table><thead><tr><th>Bill</th><th>Customer</th><th>Amount</th></tr></thead><tbody>'+S.invoices.slice(0,5).map(i=>`<tr><td>#${String(i.bill_number).padStart(4,'0')}</td><td>${i.customer_name}</td><td>₹${parseFloat(i.total).toFixed(2)}</td></tr>`).join('')+'</tbody></table>';
+  if(priv){
+    rd.innerHTML='<div class="empty"><div class="ei">🙈</div><p>Privacy mode on</p></div>';
+  } else {
+    rd.innerHTML=!S.invoices.length?'<div class="empty"><div class="ei">🧾</div><p>No bills</p></div>':'<table><thead><tr><th>Bill</th><th>Customer</th><th>Amount</th></tr></thead><tbody>'+S.invoices.slice(0,5).map(i=>`<tr><td>#${String(i.bill_number).padStart(4,'0')}</td><td>${i.customer_name}</td><td>₹${parseFloat(i.total).toFixed(2)}</td></tr>`).join('')+'</tbody></table>';
+  }
   const ld=document.getElementById('d-lowlist');
   ld.innerHTML=!low.length?'<div class="empty"><div class="ei">✅</div><p>All in stock</p></div>':low.map(p=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${p.name}</span><span class="badge badge-red">Stock: ${p.stock}</span></div>`).join('');
 }
