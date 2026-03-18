@@ -35,13 +35,13 @@
 #thermalPrint {
   display: none;
   width: 58mm;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1.6;
   color: #000;
   background: #fff;
-  padding: 3mm 2mm;
+  padding: 2mm 1.5mm;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -2278,22 +2278,25 @@ function buildBillHTML(d, forImage=false){
   const billStr = String(d.billNum).padStart(4,'0');
   const terms = (s.terms||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
   const totalQty = d.items.reduce((sum,i)=>sum+parseInt(i.qty||1),0);
-  const w = forImage ? '320px' : '54mm';
-  const p = forImage ? '12px' : '2.5mm';
-  const fs = forImage ? '11.5px' : '8.5px';
-  const fsS = forImage ? '10px' : '7.5px';
-  const fsXs = forImage ? '9px' : '7px';
-  const fsLg = forImage ? '14px' : '10px';
+
+  // Font sizes — print ma Vyapar jevo bold & clear
+  const w    = forImage ? '340px' : '54mm';
+  const p    = forImage ? '14px'  : '2mm';
+  const fsXl = forImage ? '15px'  : '11px';   // shop name
+  const fsLg = forImage ? '13px'  : '10px';   // customer name, total
+  const fs   = forImage ? '12px'  : '9.5px';  // normal text
+  const fsSm = forImage ? '11px'  : '9px';    // table, invoice info
+  const fsXs = forImage ? '10px'  : '8.5px';  // terms, address
+  const fw   = '700';   // sab bold
+  const fwN  = '600';   // normal rows - thodi bold
   const center = 'text-align:center;';
-  const dash = `<div style="border-top:1px dashed #000;margin:3px 0"></div>`;
-  const solid = `<div style="border-top:1px solid #000;margin:3px 0"></div>`;
+  const dash = `<div style="border-top:1px dashed #000;margin:4px 0"></div>`;
 
   // Terms — numbered lines
   const termsHTML = terms ? (() => {
-    // Split by numbered points (1), (2)...
     const parts = terms.split(/(?=\(\d+\))/);
-    return parts.map(p=>p.trim()).filter(Boolean)
-      .map(p=>`<div style="font-size:${fsXs};line-height:1.6;text-align:center">${p}</div>`).join('');
+    return parts.map(pt=>pt.trim()).filter(Boolean)
+      .map(pt=>`<div style="font-size:${fsXs};font-weight:${fwN};line-height:1.7;text-align:center">${pt}</div>`).join('');
   })() : '';
 
   // Items rows
@@ -2302,58 +2305,53 @@ function buildBillHTML(d, forImage=false){
     const mrp = item.mrp || item.price;
     rows += `
     <tr>
-      <td style="font-size:${fsS};padding:2px 1px;vertical-align:top">${i+1}</td>
-      <td style="font-size:${fsS};padding:2px 1px;vertical-align:top;word-break:break-word;max-width:${forImage?'120px':'28mm'}">${item.name}</td>
-      <td style="font-size:${fsS};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${parseFloat(mrp).toFixed(0)}</td>
-      <td style="font-size:${fsS};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${parseFloat(item.price).toFixed(0)}</td>
-      <td style="font-size:${fsS};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${parseFloat(item.total).toFixed(0)}</td>
+      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;vertical-align:top">${i+1}</td>
+      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;vertical-align:top;word-break:break-word;max-width:${forImage?'130px':'30mm'}">${item.name}</td>
+      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${parseFloat(mrp).toFixed(0)}</td>
+      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${parseFloat(item.price).toFixed(0)}</td>
+      <td style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right;vertical-align:top;white-space:nowrap">${parseFloat(item.total).toFixed(0)}</td>
     </tr>
     <tr>
       <td></td>
-      <td colspan="4" style="font-size:${fsS};padding:0 1px 3px">
-        ${item.qty}Pcs
-      </td>
+      <td colspan="4" style="font-size:${fsSm};font-weight:${fwN};padding:0 1px 4px">${item.qty}Pcs</td>
     </tr>`;
   });
 
-  const amtStyle = `font-size:${fs};padding:1px 0;display:flex;justify-content:space-between`;
+  const amtStyle = `font-size:${fs};font-weight:${fw};padding:2px 0;display:flex;justify-content:space-between`;
 
-  return `<div style="width:${w};background:#fff;color:#000;font-family:'Courier New',Courier,monospace;padding:${p};box-sizing:border-box;-webkit-print-color-adjust:exact">
+  return `<div style="width:${w};background:#fff;color:#000;font-family:'Courier New',Courier,monospace;font-weight:${fw};padding:${p};box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact">
 
-    <!-- SHOP HEADER — center -->
-    <div style="${center}font-size:${fsLg};font-weight:bold;letter-spacing:0.5px">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
-    ${s.address?`<div style="${center}font-size:${fsXs};line-height:1.5;margin-top:1px">${s.address.replace(/\n/g,'<br>')}</div>`:''}
-    ${s.email?`<div style="${center}font-size:${fsXs};margin-top:1px">${s.email}</div>`:''}
-    ${s.phone?`<div style="${center}font-size:${fsXs}">Ph: ${s.phone}</div>`:''}
-    ${s.gst_number?`<div style="${center}font-size:${fsXs}">GSTIN: ${s.gst_number}</div>`:''}
+    <!-- SHOP HEADER -->
+    <div style="${center}font-size:${fsXl};font-weight:${fw};letter-spacing:0.5px;line-height:1.4">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
+    ${s.address?`<div style="${center}font-size:${fsXs};font-weight:${fwN};line-height:1.6;margin-top:2px">${s.address.replace(/\n/g,'<br>')}</div>`:''}
+    ${s.email?`<div style="${center}font-size:${fsXs};font-weight:${fwN};margin-top:1px">${s.email}</div>`:''}
+    ${s.phone?`<div style="${center}font-size:${fsXs};font-weight:${fwN}">Ph: ${s.phone}</div>`:''}
+    ${s.gst_number?`<div style="${center}font-size:${fsXs};font-weight:${fwN}">GSTIN: ${s.gst_number}</div>`:''}
     ${dash}
 
     <!-- INVOICE INFO -->
-    <div style="${center}font-size:${fsS};font-weight:bold;margin:2px 0">Invoice</div>
-    <div style="display:flex;justify-content:space-between;font-size:${fsS};margin:1px 0">
+    <div style="${center}font-size:${fs};font-weight:${fw};margin:2px 0">Invoice</div>
+    <div style="display:flex;justify-content:space-between;font-size:${fsSm};font-weight:${fw};margin:2px 0">
       <span>Invoice No.: ${billStr}</span>
       <span>Date: ${d.dateStr||''}</span>
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:${fsS};margin:1px 0">
-      <span></span>
-      <span>Time: ${d.billTime||''}</span>
-    </div>
-    ${d.custPhone?`<div style="text-align:right;font-size:${fsS};margin:1px 0">MOBILE NO.: ${d.custPhone}</div>`:''}
+    <div style="text-align:right;font-size:${fsSm};font-weight:${fw};margin:1px 0">Time: ${d.billTime||''}</div>
+    ${d.custPhone?`<div style="text-align:right;font-size:${fsSm};font-weight:${fw};margin:1px 0">MOBILE NO.: ${d.custPhone}</div>`:''}
     ${dash}
 
     <!-- CUSTOMER -->
-    <div style="${center}font-size:${fs};font-weight:bold;margin:3px 0">${d.customer||'Walk-in'}</div>
+    <div style="${center}font-size:${fsLg};font-weight:${fw};margin:4px 0;letter-spacing:0.3px">${d.customer||'Walk-in'}</div>
     ${dash}
 
     <!-- ITEMS TABLE -->
     <table style="width:100%;border-collapse:collapse">
       <thead>
         <tr>
-          <th style="font-size:${fsS};padding:1px;text-align:left;font-weight:bold">#</th>
-          <th style="font-size:${fsS};padding:1px;text-align:left;font-weight:bold">Item Name</th>
-          <th style="font-size:${fsS};padding:1px;text-align:right;font-weight:bold">MRP</th>
-          <th style="font-size:${fsS};padding:1px;text-align:right;font-weight:bold">Price</th>
-          <th style="font-size:${fsS};padding:1px;text-align:right;font-weight:bold">Amount</th>
+          <th style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:left">#</th>
+          <th style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:left">Item Name</th>
+          <th style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right">MRP</th>
+          <th style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right">Price</th>
+          <th style="font-size:${fsSm};font-weight:${fw};padding:2px 1px;text-align:right">Amount</th>
         </tr>
       </thead>
       <tbody>
@@ -2364,32 +2362,31 @@ function buildBillHTML(d, forImage=false){
     </table>
 
     <!-- QTY SUMMARY -->
-    <div style="display:flex;justify-content:space-between;font-size:${fsS};margin:2px 0">
+    <div style="display:flex;justify-content:space-between;font-size:${fsSm};font-weight:${fw};margin:3px 0">
       <span>Qty: ${totalQty}</span>
       <span>Items: ${d.items.length}</span>
-      <span style="font-weight:bold">${parseFloat(d.t.sub).toFixed(0)}</span>
+      <span>${parseFloat(d.t.sub).toFixed(0)}</span>
     </div>
     ${dash}
 
     <!-- TOTALS -->
-    <div style="${amtStyle}"><span>Total</span><span>: ${parseFloat(d.t.sub).toFixed(0)}</span></div>
-    ${d.t.disc>0?`<div style="${amtStyle}"><span>Discount(${d.t.disc}%)</span><span>: -${parseFloat(d.t.discAmt).toFixed(0)}</span></div>`:''}
-    ${parseFloat(d.t.gst)>0?`<div style="${amtStyle}"><span>GST(${Math.round(d.t.gstRate)}%)</span><span>: ${parseFloat(d.t.gst).toFixed(0)}</span></div>`:''}
-    <div style="${amtStyle}"><span>Received</span><span>: ${parseFloat(d.t.grand).toFixed(0)}</span></div>
-    <div style="${amtStyle}"><span>Balance</span><span>: 0</span></div>
-    ${d.t.disc>0?`${dash}<div style="${amtStyle}"><span>You Saved</span><span>: ${parseFloat(d.t.discAmt).toFixed(0)}</span></div>`:''}
+    <div style="${amtStyle}"><span>Total</span><span>:    ${parseFloat(d.t.sub).toFixed(0)}</span></div>
+    ${d.t.disc>0?`<div style="${amtStyle}"><span>Discount(${d.t.disc}%)</span><span>:    -${parseFloat(d.t.discAmt).toFixed(0)}</span></div>`:''}
+    ${parseFloat(d.t.gst)>0?`<div style="${amtStyle}"><span>GST(${Math.round(d.t.gstRate)}%)</span><span>:    ${parseFloat(d.t.gst).toFixed(0)}</span></div>`:''}
+    <div style="${amtStyle}"><span>Received</span><span>:    ${parseFloat(d.t.grand).toFixed(0)}</span></div>
+    <div style="${amtStyle}"><span>Balance</span><span>:    0</span></div>
+    ${d.t.disc>0?`${dash}<div style="${amtStyle}"><span>You Saved</span><span>:    ${parseFloat(d.t.discAmt).toFixed(0)}</span></div>`:''}
     ${dash}
 
-    ${d.note?`<div style="font-size:${fsXs};margin:2px 0">Note: ${d.note}</div>${dash}`:''}
+    ${d.note?`<div style="font-size:${fsXs};font-weight:${fwN};margin:2px 0">Note: ${d.note}</div>${dash}`:''}
 
     <!-- TERMS -->
-    ${termsHTML?`<div style="${center}font-size:${fsS};font-weight:bold;margin:3px 0">Terms & Conditions</div>${termsHTML}${dash}`:''}
+    ${termsHTML?`<div style="${center}font-size:${fs};font-weight:${fw};margin:4px 0">Terms & Conditions</div>${termsHTML}${dash}`:''}
 
     <!-- FOOTER -->
-    <div style="${center}font-size:${fsS};margin-top:3px">${s.thank_you||'Happy to help you always.... Visit again.'}</div>
+    <div style="${center}font-size:${fsSm};font-weight:${fw};margin-top:4px">${s.thank_you||'Happy to help you always.... Visit again.'}</div>
     <div style="height:${forImage?'10px':'8mm'}"></div>
   </div>`;
-}
 
 // ===== 58mm THERMAL PRINT =====
 function thermalPrint(invData){
@@ -3191,8 +3188,9 @@ function toggleBulkMode(){
 }
 
 function toggleProdSel(id, checked){
-  if(checked) window._selectedProds.add(id);
-  else window._selectedProds.delete(id);
+  const numId = parseInt(id);
+  if(checked) window._selectedProds.add(numId);
+  else window._selectedProds.delete(numId);
   const card = document.getElementById('pcard-'+id);
   if(card){
     card.style.borderColor = checked ? 'var(--accent)' : '';
@@ -3204,12 +3202,12 @@ function toggleProdSel(id, checked){
 function toggleSelectAll(){
   const q=(document.getElementById('prodSearch')?.value||'').toLowerCase();
   const list=S.products.filter(p=>p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q));
-  const allSelected = list.every(p => window._selectedProds.has(p.id));
+  const allSelected = list.every(p => window._selectedProds.has(parseInt(p.id)));
   if(allSelected){
-    list.forEach(p => window._selectedProds.delete(p.id));
+    list.forEach(p => window._selectedProds.delete(parseInt(p.id)));
     document.getElementById('btnSelectAll').textContent = '☑ Select All';
   } else {
-    list.forEach(p => window._selectedProds.add(p.id));
+    list.forEach(p => window._selectedProds.add(parseInt(p.id)));
     document.getElementById('btnSelectAll').textContent = '☐ Deselect All';
   }
   document.getElementById('bulkSelCount').textContent = window._selectedProds.size + ' selected';
@@ -3219,17 +3217,24 @@ function toggleSelectAll(){
 async function bulkDeleteProds(){
   if(!window._selectedProds.size){ toast('Koi product select nathi karyun!','error'); return; }
   if(!confirm(window._selectedProds.size + ' products delete karva chho?')) return;
-  let done=0;
-  for(const id of window._selectedProds){
+
+  // Pehla array ma convert karo — loop ma Set modify na thay
+  const ids = Array.from(window._selectedProds);
+  let done = 0;
+
+  for(const id of ids){
     try{
       await api(`products?id=eq.${id}`,'DELETE');
-      S.products = S.products.filter(p=>p.id!==id);
+      // id number hoy ke string — banne handle karo
+      S.products = S.products.filter(p => String(p.id) !== String(id));
       done++;
-    } catch(e){}
+    } catch(e){ console.error('Delete failed for id:', id, e); }
   }
+
   window._selectedProds = new Set();
+  toggleBulkMode(); // bulk mode band karo
   saveOffline(); renderProds(); populateSels(); updateDash();
-  toast('✅ '+done+' products deleted!','success');
+  toast('✅ ' + done + ' products deleted!', 'success');
 }
 
 async function bulkUpdatePrice(){
