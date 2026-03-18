@@ -2299,11 +2299,11 @@ function buildBillHTML(d, forImage=false){
   const center = 'text-align:center;';
   const dash = `<div style="border-top:1px dashed #000;margin:3px 0"></div>`;
 
-  // Terms
+  // Terms — same font as whole bill
   const termsHTML = terms ? (() => {
     const parts = terms.split(/(?=\(\d+\))/);
     return parts.map(pt=>pt.trim()).filter(Boolean)
-      .map(pt=>`<div style="font-size:${fsXs};font-weight:${fwN};line-height:1.7;text-align:center;word-break:break-word;overflow-wrap:break-word">${pt}</div>`).join('');
+      .map(pt=>`<div style="font-family:'Courier New',Courier,monospace;font-size:${fsSm};font-weight:${fw};line-height:1.7;text-align:center;word-break:break-word;overflow-wrap:break-word">${pt}</div>`).join('');
   })() : '';
 
   // Items rows — 4 columns only (#, Name, Price, Amt) — MRP alag line
