@@ -796,7 +796,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
   <div class="mob-nav-item" id="mbn-billing" onclick="mobNav('billing',this)">
     <span class="mob-icon">◉</span><span>Bill</span>
   </div>
-  <div class="mob-nav-item" id="mbn-invoices" onclick="mobNav('invoices',this)">
+  <div class="mob-nav-item" id="mbn-invoices" onclick="mobNav('invoices',this);renderInvs()">
     <span class="mob-icon">≡</span><span>History</span>
   </div>
   <div class="mob-nav-item" id="mbn-reports" onclick="mobNavReport(this)">
@@ -834,9 +834,9 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
   <nav class="nav">
     <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">◈</span> Dashboard</div>
     <div class="nav-item" onclick="showPage('billing',this)"><span class="nav-icon">◉</span> New Bill</div>
-    <div class="nav-item" onclick="showPage('products',this)"><span class="nav-icon">▣</span> Products</div>
-    <div class="nav-item" onclick="showPage('customers',this)"><span class="nav-icon">◎</span> Customers</div>
-    <div class="nav-item" onclick="showPage('invoices',this)"><span class="nav-icon">≡</span> Bill History</div>
+    <div class="nav-item" onclick="showPage('products',this);renderProds()"><span class="nav-icon">▣</span> Products</div>
+    <div class="nav-item" onclick="showPage('customers',this);renderCusts()"><span class="nav-icon">◎</span> Customers</div>
+    <div class="nav-item" onclick="showPage('invoices',this);renderInvs()"><span class="nav-icon">≡</span> Bill History</div>
     <div class="nav-item" onclick="askPIN('reports')"><span class="nav-icon">📊</span> Reports</div>
     <div class="nav-item" onclick="showPage('import',this)"><span class="nav-icon">⇪</span> Excel Import</div>
     <div class="nav-item" onclick="showPage('settings',this)"><span class="nav-icon">⚙</span> Settings</div>
@@ -1002,6 +1002,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
         <input type="text" id="prodSearch" placeholder="🔍 Search..." oninput="renderProds()"
           style="padding:9px 13px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;flex:1;max-width:280px">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('prodSearch').value='';renderProds()">📋 Show All</button>
           <button class="btn btn-ghost btn-sm" id="btnSelectAll" onclick="toggleSelectAll()" style="display:none">☑ Select All</button>
           <button class="btn btn-danger btn-sm" id="btnBulkDelete" onclick="bulkDeleteProds()" style="display:none">🗑 Delete Selected</button>
           <button class="btn btn-danger btn-sm" onclick="deleteAllProds()" style="background:#7f1d1d">🗑 Delete All</button>
@@ -1030,6 +1031,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap">
         <input type="text" id="custSearch" placeholder="🔍 Search..." oninput="renderCusts()"
           style="padding:9px 13px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:250px">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('custSearch').value='';renderCusts()">📋 Show All</button>
         <button class="btn btn-primary" onclick="openAddCust()">+ New Customer</button>
       </div>
       <div class="card">
@@ -1052,6 +1054,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
             oninput="renderInvs()"
             style="width:100%;padding:9px 12px 9px 34px;background:var(--s2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;box-sizing:border-box">
         </div>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('invSearch').value='';renderInvs()">📋 Show All</button>
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('invSearch').value='';renderInvs()">✕ Clear</button>
       </div>
       <div id="invCount" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
@@ -1720,7 +1723,7 @@ async function init(){
   try {
     await loadAll();
     setSyncStatus('online');
-  vbInit();
+    vbInit();
     document.getElementById('loadingOverlay').style.display='none';
     applySettings();
     renderAll();
@@ -1729,7 +1732,10 @@ async function init(){
     document.getElementById('loadingMsg').textContent = 'Connection failed. Loading offline...';
     loadOffline();
     setSyncStatus('offline');
-    setTimeout(()=>{ document.getElementById('loadingOverlay').style.display='none'; },1500);
+    vbInit();
+    applySettings();
+    renderAll();
+    setTimeout(()=>{ document.getElementById('loadingOverlay').style.display='none'; },1000);
   }
   ['pPrice','pCost'].forEach(id => document.getElementById(id).addEventListener('input', ppPreview));
 }
@@ -3184,8 +3190,12 @@ function exportMonthlyExcel(){
 // ===== PRODUCTS =====
 function renderProds(){
   const q=(document.getElementById('prodSearch')?.value||'').toLowerCase();
-  const list=S.products.filter(p=>p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q));
+  const list=S.products.filter(p=>
+    (p.name||'').toLowerCase().includes(q) ||
+    (p.sku||'').toLowerCase().includes(q)
+  );
   const grid=document.getElementById('prodGrid');
+  if(!grid) return;
   const bulk = window._bulkMode || false;
   if(!list.length){ grid.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="ei">📦</div><p>No products</p></div>'; return; }
   grid.innerHTML=list.map(p=>{
@@ -3398,14 +3408,18 @@ async function bulkUpdatePrice(){
 // ===== CUSTOMERS =====
 function renderCusts(){
   const q=(document.getElementById('custSearch')?.value||'').toLowerCase();
-  const list=S.customers.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q));
+  const list=S.customers.filter(c=>
+    (c.name||'').toLowerCase().includes(q) ||
+    (c.phone||'').includes(q)
+  );
   const tbody=document.getElementById('custTable');
+  if(!tbody) return;
   if(!list.length){ tbody.innerHTML='<tr><td colspan="6" class="empty">No customers</td></tr>'; return; }
   tbody.innerHTML=list.map((c,i)=>`
     <tr>
       <td>${i+1}</td>
-      <td><strong>${c.name}</strong></td>
-      <td style="font-family:'DM Mono',monospace">${c.phone}</td>
+      <td><strong>${c.name||'—'}</strong></td>
+      <td style="font-family:'DM Mono',monospace">${c.phone||'—'}</td>
       <td>${c.address||'—'}</td>
       <td style="font-family:'DM Mono',monospace">₹${parseFloat(c.total_purchase||0).toFixed(2)}</td>
       <td>
@@ -3479,6 +3493,7 @@ async function deleteInvoice(id){
 
 function renderInvs(){
   const tbody=document.getElementById('invTable');
+  if(!tbody) return;
   const q=(document.getElementById('invSearch')?.value||'').toLowerCase().trim();
 
   // Filter invoices by search query
@@ -3682,9 +3697,17 @@ function normDate(ds){
 
 function renderDailyReport(){
   const val = document.getElementById('dailyDate').value;
-  // Date nahi hoy to aajni date set karo
-  if(!val){ setDailyToday(); return; }
-  const dateStr = normDate(val);
+  // Date nahi hoy to aajni date directly set karo — renderDailyReport dobari call na karo
+  if(!val){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    document.getElementById('dailyDate').value = yyyy+'-'+mm+'-'+dd;
+  }
+  const val2 = document.getElementById('dailyDate').value;
+  if(!val2) return;
+  const dateStr = normDate(val2);
   const dayInvs = S.invoices.filter(i=>normDate(i.bill_date)===dateStr);
 
   const sale   = dayInvs.reduce((s,i)=>s+parseFloat(i.total||0),0);
