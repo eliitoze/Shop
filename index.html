@@ -3682,7 +3682,8 @@ function normDate(ds){
 
 function renderDailyReport(){
   const val = document.getElementById('dailyDate').value;
-  if(!val) return;
+  // Date nahi hoy to aajni date set karo
+  if(!val){ setDailyToday(); return; }
   const dateStr = normDate(val);
   const dayInvs = S.invoices.filter(i=>normDate(i.bill_date)===dateStr);
 
@@ -4459,11 +4460,41 @@ async function vbSave(){
     return; 
   }
 
-  const custId = parseInt(document.getElementById('vbCustId').value)||null;
+  const custId_raw = parseInt(document.getElementById('vbCustId').value)||null;
   const custName = document.getElementById('vbCustName').value.trim() || 'Walk-in';
   const phone = document.getElementById('vbPhone').value.trim();
   const note = document.getElementById('vbNote').value.trim();
   const payMode = vbGetPayMode();
+
+  // Auto-save customer if name+phone entered but not selected from list
+  let custId = custId_raw;
+  if(!custId && custName !== 'Walk-in' && phone){
+    // Check if already exists
+    const existing = S.customers.find(c=>
+      c.phone === phone ||
+      c.name.toLowerCase() === custName.toLowerCase()
+    );
+    if(existing){
+      custId = existing.id;
+    } else {
+      // New customer — save
+      try{
+        const newCust = {name: custName, phone, address:'', total_purchase:0};
+        const saved = await api('customers','POST', newCust);
+        const nc = saved&&saved[0] ? saved[0] : {...newCust, id:Date.now()};
+        S.customers.push(nc);
+        custId = nc.id;
+        saveOffline();
+        toast('👤 Customer saved: '+custName,'success');
+      } catch(e){
+        // offline — local save
+        const nc = {id:Date.now(), name:custName, phone, address:'', total_purchase:0};
+        S.customers.push(nc);
+        custId = nc.id;
+        saveOffline();
+      }
+    }
+  }
   const subtotal = VB.rows.reduce((s,r)=>s+(r.amount||0),0);
   const discPct = parseFloat(document.getElementById('vbDiscPct').value)||0;
   const discAmt = subtotal * discPct / 100;
