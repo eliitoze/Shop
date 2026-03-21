@@ -796,7 +796,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
   <div class="mob-nav-item" id="mbn-billing" onclick="mobNav('billing',this)">
     <span class="mob-icon">◉</span><span>Bill</span>
   </div>
-  <div class="mob-nav-item" id="mbn-invoices" onclick="mobNav('invoices',this)">
+  <div class="mob-nav-item" id="mbn-invoices" onclick="mobNav('invoices',this);renderInvs()">
     <span class="mob-icon">≡</span><span>History</span>
   </div>
   <div class="mob-nav-item" id="mbn-reports" onclick="mobNavReport(this)">
@@ -834,9 +834,9 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
   <nav class="nav">
     <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">◈</span> Dashboard</div>
     <div class="nav-item" onclick="showPage('billing',this)"><span class="nav-icon">◉</span> New Bill</div>
-    <div class="nav-item" onclick="showPage('products',this)"><span class="nav-icon">▣</span> Products</div>
-    <div class="nav-item" onclick="showPage('customers',this)"><span class="nav-icon">◎</span> Customers</div>
-    <div class="nav-item" onclick="showPage('invoices',this)"><span class="nav-icon">≡</span> Bill History</div>
+    <div class="nav-item" onclick="showPage('products',this);renderProds()"><span class="nav-icon">▣</span> Products</div>
+    <div class="nav-item" onclick="showPage('customers',this);renderCusts()"><span class="nav-icon">◎</span> Customers</div>
+    <div class="nav-item" onclick="showPage('invoices',this);renderInvs()"><span class="nav-icon">≡</span> Bill History</div>
     <div class="nav-item" onclick="askPIN('reports')"><span class="nav-icon">📊</span> Reports</div>
     <div class="nav-item" onclick="showPage('import',this)"><span class="nav-icon">⇪</span> Excel Import</div>
     <div class="nav-item" onclick="showPage('settings',this)"><span class="nav-icon">⚙</span> Settings</div>
@@ -1002,6 +1002,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
         <input type="text" id="prodSearch" placeholder="🔍 Search..." oninput="renderProds()"
           style="padding:9px 13px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;flex:1;max-width:280px">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('prodSearch').value='';renderProds()">📋 Show All</button>
           <button class="btn btn-ghost btn-sm" id="btnSelectAll" onclick="toggleSelectAll()" style="display:none">☑ Select All</button>
           <button class="btn btn-danger btn-sm" id="btnBulkDelete" onclick="bulkDeleteProds()" style="display:none">🗑 Delete Selected</button>
           <button class="btn btn-danger btn-sm" onclick="deleteAllProds()" style="background:#7f1d1d">🗑 Delete All</button>
@@ -1030,6 +1031,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap">
         <input type="text" id="custSearch" placeholder="🔍 Search..." oninput="renderCusts()"
           style="padding:9px 13px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:250px">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('custSearch').value='';renderCusts()">📋 Show All</button>
         <button class="btn btn-primary" onclick="openAddCust()">+ New Customer</button>
       </div>
       <div class="card">
@@ -1052,6 +1054,7 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
             oninput="renderInvs()"
             style="width:100%;padding:9px 12px 9px 34px;background:var(--s2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;box-sizing:border-box">
         </div>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('invSearch').value='';renderInvs()">📋 Show All</button>
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('invSearch').value='';renderInvs()">✕ Clear</button>
       </div>
       <div id="invCount" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
@@ -1720,7 +1723,7 @@ async function init(){
   try {
     await loadAll();
     setSyncStatus('online');
-  vbInit();
+    vbInit();
     document.getElementById('loadingOverlay').style.display='none';
     applySettings();
     renderAll();
@@ -1729,7 +1732,10 @@ async function init(){
     document.getElementById('loadingMsg').textContent = 'Connection failed. Loading offline...';
     loadOffline();
     setSyncStatus('offline');
-    setTimeout(()=>{ document.getElementById('loadingOverlay').style.display='none'; },1500);
+    vbInit();
+    applySettings();
+    renderAll();
+    setTimeout(()=>{ document.getElementById('loadingOverlay').style.display='none'; },1000);
   }
   ['pPrice','pCost'].forEach(id => document.getElementById(id).addEventListener('input', ppPreview));
 }
@@ -1833,9 +1839,6 @@ function showPage(page, el){
   if(page==='reports') updateReports();
   if(page==='billing'){ vbUpdateInvInfo(); }
   if(page==='settings') renderUserList();
-  if(page==='products') renderProds();
-  if(page==='customers') renderCusts();
-  if(page==='invoices') renderInvs();
   document.getElementById('sidebar').classList.remove('open');
   // Billing page: no padding, full height
   const contentEl = document.querySelector('.content');
@@ -2439,80 +2442,77 @@ function thermalPrint(invData){
   const terms = (s.terms||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
 
   let html = `
-  <div style="font-weight:bold;font-size:13px;text-align:center">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
-  ${s.address?`<div style="font-size:9px;text-align:center;line-height:1.5">${s.address}</div>`:''}
-  ${s.phone?`<div style="font-size:9px;text-align:center">Ph: ${s.phone}</div>`:''}
-  ${s.gst_number?`<div style="font-size:9px;text-align:center">GSTIN: ${s.gst_number}</div>`:''}
-  ${s.email?`<div style="font-size:9px;text-align:center">${s.email}</div>`:''}
+  <div style="font-weight:bold;font-size:13px;text-align:center;font-family:'Courier New',monospace">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
+  ${s.address?`<div style="font-size:9px;text-align:center;line-height:1.5;font-family:'Courier New',monospace">${s.address}</div>`:''}
+  ${s.phone?`<div style="font-size:9px;text-align:center;font-family:'Courier New',monospace">Ph: ${s.phone}</div>`:''}
+  ${s.gst_number?`<div style="font-size:9px;text-align:center;font-family:'Courier New',monospace">GSTIN: ${s.gst_number}</div>`:''}
+  ${s.email?`<div style="font-size:9px;text-align:center;font-family:'Courier New',monospace">${s.email}</div>`:''}
   <div class="tp-solid" style="margin:5px 0"></div>
 
-  <div style="display:flex;justify-content:space-between;align-items:flex-start">
-    <div>
-      <div style="font-size:10px;color:#555">Bill To:</div>
-      <div style="font-weight:bold;font-size:12px">${customer}</div>
-      ${custPhone?`<div style="font-size:11px">Ph: ${custPhone}</div>`:''}
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:10px;color:#444">Bill No:</div>
-      <div style="font-weight:bold;font-size:13px">#${billStr}</div>
-      <div style="font-size:10px;color:#444;margin-top:2px">Date:</div>
-      <div style="font-size:11px">${dateStr}</div>
-      ${billTime?`<div style="font-size:10px;color:#444;margin-top:2px">Time:</div><div style="font-size:11px">${billTime}</div>`:''}
-    </div>
-  </div>
+  <div style="font-size:10px;font-family:'Courier New',monospace">Bill No: #${billStr}</div>
+  <div style="font-size:10px;font-family:'Courier New',monospace">Date: ${dateStr}${billTime?' | Time: '+billTime:''}</div>
+  <div style="font-size:11px;font-weight:bold;font-family:'Courier New',monospace;margin-top:3px">${customer}</div>
+  ${custPhone?`<div style="font-size:10px;font-family:'Courier New',monospace">Ph: ${custPhone}</div>`:''}
 
   <div class="tp-solid" style="margin:5px 0"></div>
 
-  <table style="width:100%;border-collapse:collapse;font-size:11px">
+  <table style="width:100%;border-collapse:collapse;font-size:10px;table-layout:fixed;font-family:'Courier New',monospace">
+    <colgroup>
+      <col style="width:8%">
+      <col style="width:44%">
+      <col style="width:10%">
+      <col style="width:18%">
+      <col style="width:20%">
+    </colgroup>
     <thead>
-      <tr style="background:#f0f0f0;border-bottom:2px solid #000">
-        <th style="text-align:left;padding:4px 2px">SR</th>
-        <th style="text-align:left;padding:4px 2px">Name</th>
-        <th style="text-align:center;padding:4px 2px">Qty</th>
-        <th style="text-align:right;padding:4px 2px">Price</th>
-        <th style="text-align:right;padding:4px 2px">Amt</th>
+      <tr style="border-bottom:2px solid #000">
+        <th style="text-align:left;padding:3px 1px">SR</th>
+        <th style="text-align:left;padding:3px 1px">Name</th>
+        <th style="text-align:center;padding:3px 1px">Qty</th>
+        <th style="text-align:right;padding:3px 1px">Price</th>
+        <th style="text-align:right;padding:3px 1px">Amt</th>
       </tr>
     </thead>
     <tbody>`;
 
   items.forEach((item,i)=>{
-    html += `<tr style="border-bottom:1px solid #ddd">
-      <td style="padding:5px 2px">${i+1}</td>
-      <td style="padding:5px 2px">${item.name}</td>
-      <td style="text-align:center;padding:5px 2px">${item.qty}</td>
-      <td style="text-align:right;padding:5px 2px">${parseFloat(item.price).toFixed(0)}</td>
-      <td style="text-align:right;padding:5px 2px">${parseFloat(item.total).toFixed(0)}</td>
+    html += `<tr style="border-bottom:1px dashed #ccc">
+      <td style="padding:4px 1px;vertical-align:top">${i+1}</td>
+      <td style="padding:4px 1px;word-break:break-word">${item.name}</td>
+      <td style="text-align:center;padding:4px 1px;vertical-align:top">${item.qty}</td>
+      <td style="text-align:right;padding:4px 1px;vertical-align:top">${parseFloat(item.price).toFixed(0)}</td>
+      <td style="text-align:right;padding:4px 1px;vertical-align:top">${parseFloat(item.total).toFixed(0)}</td>
     </tr>`;
   });
 
   const totalQty = items.reduce((s,i)=>s+parseInt(i.qty||1),0);
-  html += `<tr style="border-top:2px solid #000;background:#f0f0f0">
-    <td colspan="2" style="padding:4px 2px;text-align:right;font-weight:bold">Items: ${items.length}</td>
-    <td style="text-align:center;padding:4px 2px;font-weight:bold">${totalQty}</td>
+  html += `<tr style="border-top:2px solid #000">
+    <td colspan="2" style="padding:4px 1px;font-weight:bold">Items: ${items.length}</td>
+    <td style="text-align:center;padding:4px 1px;font-weight:bold">${totalQty}</td>
     <td></td>
-    <td style="text-align:right;padding:4px 2px;font-weight:bold">${parseFloat(t.sub).toFixed(0)}</td>
+    <td style="text-align:right;padding:4px 1px;font-weight:bold">${parseFloat(t.sub).toFixed(0)}</td>
   </tr>
   </tbody></table>
 
   <div class="tp-solid" style="margin:5px 0"></div>
 
-  <div style="font-size:11px">
-    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:3px 0"><span>Subtotal</span><span>${parseFloat(t.sub).toFixed(0)}</span></div>`:''}
-    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:3px 0"><span>Discount(${t.disc}%)</span><span>-${parseFloat(t.discAmt).toFixed(0)}</span></div>`:''}
-    ${parseFloat(t.gst)>0?`<div style="display:flex;justify-content:space-between;margin:3px 0"><span>GST(${Math.round(t.gstRate)}%)</span><span>${parseFloat(t.gst).toFixed(0)}</span></div>`:''}
+  <div style="font-size:11px;font-family:'Courier New',monospace">
+    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:2px 0"><span>Subtotal</span><span>${parseFloat(t.sub).toFixed(0)}</span></div>`:''}
+    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:2px 0"><span>Discount(${t.disc}%)</span><span>-${parseFloat(t.discAmt).toFixed(0)}</span></div>`:''}
+    ${parseFloat(t.gst)>0?`<div style="display:flex;justify-content:space-between;margin:2px 0"><span>GST(${Math.round(t.gstRate)}%)</span><span>${parseFloat(t.gst).toFixed(0)}</span></div>`:''}
     <div class="tp-solid" style="margin:4px 0"></div>
-    <div style="display:flex;justify-content:space-between;margin:3px 0;font-weight:bold;font-size:13px">
+    <div style="display:flex;justify-content:space-between;margin:2px 0;font-weight:bold;font-size:12px">
       <span>TOTAL</span><span>Rs.${parseFloat(t.grand).toFixed(0)}</span>
     </div>
-    <div style="display:flex;justify-content:space-between;margin:3px 0">
+    <div style="display:flex;justify-content:space-between;margin:2px 0">
       <span>Payment</span><span>${payment}</span>
     </div>
-    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:3px 0;font-weight:bold"><span>You Saved</span><span>Rs.${parseFloat(t.discAmt).toFixed(0)}</span></div>`:''}
+    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:2px 0;font-weight:bold"><span>You Saved</span><span>Rs.${parseFloat(t.discAmt).toFixed(0)}</span></div>`:''}
   </div>
 
-  ${note?`<div class="tp-solid" style="margin:4px 0"></div><div style="font-size:10px">Note: ${note}</div>`:''}
+  ${note?`<div class="tp-solid" style="margin:4px 0"></div><div style="font-size:9px;font-family:'Courier New',monospace">Note: ${note}</div>`:''}
   <div class="tp-solid" style="margin:5px 0"></div>
-  <div style="font-size:9px;line-height:1.7;color:#111">${terms}</div>
+  <div style="font-size:9px;line-height:1.7;font-family:'Courier New',monospace">${terms}</div>
   <div style="height:8mm"></div>`;
 
   const el = document.getElementById('thermalPrint');
@@ -3187,8 +3187,12 @@ function exportMonthlyExcel(){
 // ===== PRODUCTS =====
 function renderProds(){
   const q=(document.getElementById('prodSearch')?.value||'').toLowerCase();
-  const list=S.products.filter(p=>p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q));
+  const list=S.products.filter(p=>
+    (p.name||'').toLowerCase().includes(q) ||
+    (p.sku||'').toLowerCase().includes(q)
+  );
   const grid=document.getElementById('prodGrid');
+  if(!grid) return;
   const bulk = window._bulkMode || false;
   if(!list.length){ grid.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="ei">📦</div><p>No products</p></div>'; return; }
   grid.innerHTML=list.map(p=>{
@@ -3401,14 +3405,18 @@ async function bulkUpdatePrice(){
 // ===== CUSTOMERS =====
 function renderCusts(){
   const q=(document.getElementById('custSearch')?.value||'').toLowerCase();
-  const list=S.customers.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q));
+  const list=S.customers.filter(c=>
+    (c.name||'').toLowerCase().includes(q) ||
+    (c.phone||'').includes(q)
+  );
   const tbody=document.getElementById('custTable');
+  if(!tbody) return;
   if(!list.length){ tbody.innerHTML='<tr><td colspan="6" class="empty">No customers</td></tr>'; return; }
   tbody.innerHTML=list.map((c,i)=>`
     <tr>
       <td>${i+1}</td>
-      <td><strong>${c.name}</strong></td>
-      <td style="font-family:'DM Mono',monospace">${c.phone}</td>
+      <td><strong>${c.name||'—'}</strong></td>
+      <td style="font-family:'DM Mono',monospace">${c.phone||'—'}</td>
       <td>${c.address||'—'}</td>
       <td style="font-family:'DM Mono',monospace">₹${parseFloat(c.total_purchase||0).toFixed(2)}</td>
       <td>
@@ -3482,6 +3490,7 @@ async function deleteInvoice(id){
 
 function renderInvs(){
   const tbody=document.getElementById('invTable');
+  if(!tbody) return;
   const q=(document.getElementById('invSearch')?.value||'').toLowerCase().trim();
 
   // Filter invoices by search query
@@ -3685,9 +3694,17 @@ function normDate(ds){
 
 function renderDailyReport(){
   const val = document.getElementById('dailyDate').value;
-  // Date nahi hoy to aajni date set karo
-  if(!val){ setDailyToday(); return; }
-  const dateStr = normDate(val);
+  // Date nahi hoy to aajni date directly set karo — renderDailyReport dobari call na karo
+  if(!val){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    document.getElementById('dailyDate').value = yyyy+'-'+mm+'-'+dd;
+  }
+  const val2 = document.getElementById('dailyDate').value;
+  if(!val2) return;
+  const dateStr = normDate(val2);
   const dayInvs = S.invoices.filter(i=>normDate(i.bill_date)===dateStr);
 
   const sale   = dayInvs.reduce((s,i)=>s+parseFloat(i.total||0),0);
