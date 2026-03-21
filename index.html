@@ -186,7 +186,7 @@ html, body {
 }
 
 .topbar {
-  background: var(--s1);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   padding: 12px 20px;
   display: flex;
@@ -195,7 +195,7 @@ html, body {
   gap: 12px;
   flex-shrink: 0;
 }
-.topbar h2 { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; }
+.topbar h2 { font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 
 .content {
@@ -2462,10 +2462,10 @@ function thermalPrint(invData){
     </colgroup>
     <thead>
       <tr style="border-bottom:1px solid #000">
-        <th style="text-align:left;padding:2px 1px;font-weight:700;font-family:'Courier New',monospace;font-size:10px">SR</th>
-        <th style="text-align:left;padding:2px 1px;font-weight:700;font-family:'Courier New',monospace;font-size:10px">Name</th>
-        <th style="text-align:center;padding:2px 1px;font-weight:700;font-family:'Courier New',monospace;font-size:10px">Qty</th>
-        <th style="text-align:right;padding:2px 1px;font-weight:700;font-family:'Courier New',monospace;font-size:10px">Amount</th>
+        <td style="padding:3px 1px;vertical-align:top;font-weight:bold;color:#000">SR</td>
+        <td style="padding:3px 1px;word-break:break-word;overflow-wrap:break-word;font-weight:bold;color:#000">Name</td>
+        <td style="text-align:center;padding:3px 1px;vertical-align:top;font-weight:bold;color:#000">Qty</td>
+        <td style="text-align:right;padding:3px 1px;vertical-align:top;font-weight:bold;color:#000">Amt</td>
       </tr>
     </thead>
     <tbody>`;
