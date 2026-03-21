@@ -2442,80 +2442,77 @@ function thermalPrint(invData){
   const terms = (s.terms||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
 
   let html = `
-  <div style="font-weight:bold;font-size:13px;text-align:center">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
-  ${s.address?`<div style="font-size:9px;text-align:center;line-height:1.5">${s.address}</div>`:''}
-  ${s.phone?`<div style="font-size:9px;text-align:center">Ph: ${s.phone}</div>`:''}
-  ${s.gst_number?`<div style="font-size:9px;text-align:center">GSTIN: ${s.gst_number}</div>`:''}
-  ${s.email?`<div style="font-size:9px;text-align:center">${s.email}</div>`:''}
+  <div style="font-weight:bold;font-size:13px;text-align:center;font-family:'Courier New',monospace">${(s.shop_name||'ELIITOZE JEWELZ').toUpperCase()}</div>
+  ${s.address?`<div style="font-size:9px;text-align:center;line-height:1.5;font-family:'Courier New',monospace">${s.address}</div>`:''}
+  ${s.phone?`<div style="font-size:9px;text-align:center;font-family:'Courier New',monospace">Ph: ${s.phone}</div>`:''}
+  ${s.gst_number?`<div style="font-size:9px;text-align:center;font-family:'Courier New',monospace">GSTIN: ${s.gst_number}</div>`:''}
+  ${s.email?`<div style="font-size:9px;text-align:center;font-family:'Courier New',monospace">${s.email}</div>`:''}
   <div class="tp-solid" style="margin:5px 0"></div>
 
-  <div style="display:flex;justify-content:space-between;align-items:flex-start">
-    <div>
-      <div style="font-size:10px;color:#555">Bill To:</div>
-      <div style="font-weight:bold;font-size:12px">${customer}</div>
-      ${custPhone?`<div style="font-size:11px">Ph: ${custPhone}</div>`:''}
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:10px;color:#444">Bill No:</div>
-      <div style="font-weight:bold;font-size:13px">#${billStr}</div>
-      <div style="font-size:10px;color:#444;margin-top:2px">Date:</div>
-      <div style="font-size:11px">${dateStr}</div>
-      ${billTime?`<div style="font-size:10px;color:#444;margin-top:2px">Time:</div><div style="font-size:11px">${billTime}</div>`:''}
-    </div>
-  </div>
+  <div style="font-size:10px;font-family:'Courier New',monospace">Bill No: #${billStr}</div>
+  <div style="font-size:10px;font-family:'Courier New',monospace">Date: ${dateStr}${billTime?' | Time: '+billTime:''}</div>
+  <div style="font-size:11px;font-weight:bold;font-family:'Courier New',monospace;margin-top:3px">${customer}</div>
+  ${custPhone?`<div style="font-size:10px;font-family:'Courier New',monospace">Ph: ${custPhone}</div>`:''}
 
   <div class="tp-solid" style="margin:5px 0"></div>
 
-  <table style="width:100%;border-collapse:collapse;font-size:11px">
+  <table style="width:100%;border-collapse:collapse;font-size:10px;table-layout:fixed;font-family:'Courier New',monospace">
+    <colgroup>
+      <col style="width:8%">
+      <col style="width:44%">
+      <col style="width:10%">
+      <col style="width:18%">
+      <col style="width:20%">
+    </colgroup>
     <thead>
-      <tr style="background:#f0f0f0;border-bottom:2px solid #000">
-        <th style="text-align:left;padding:4px 2px">SR</th>
-        <th style="text-align:left;padding:4px 2px">Name</th>
-        <th style="text-align:center;padding:4px 2px">Qty</th>
-        <th style="text-align:right;padding:4px 2px">Price</th>
-        <th style="text-align:right;padding:4px 2px">Amt</th>
+      <tr style="border-bottom:2px solid #000">
+        <th style="text-align:left;padding:3px 1px">SR</th>
+        <th style="text-align:left;padding:3px 1px">Name</th>
+        <th style="text-align:center;padding:3px 1px">Qty</th>
+        <th style="text-align:right;padding:3px 1px">Price</th>
+        <th style="text-align:right;padding:3px 1px">Amt</th>
       </tr>
     </thead>
     <tbody>`;
 
   items.forEach((item,i)=>{
-    html += `<tr style="border-bottom:1px solid #ddd">
-      <td style="padding:5px 2px">${i+1}</td>
-      <td style="padding:5px 2px">${item.name}</td>
-      <td style="text-align:center;padding:5px 2px">${item.qty}</td>
-      <td style="text-align:right;padding:5px 2px">${parseFloat(item.price).toFixed(0)}</td>
-      <td style="text-align:right;padding:5px 2px">${parseFloat(item.total).toFixed(0)}</td>
+    html += `<tr style="border-bottom:1px dashed #ccc">
+      <td style="padding:4px 1px;vertical-align:top">${i+1}</td>
+      <td style="padding:4px 1px;word-break:break-word">${item.name}</td>
+      <td style="text-align:center;padding:4px 1px;vertical-align:top">${item.qty}</td>
+      <td style="text-align:right;padding:4px 1px;vertical-align:top">${parseFloat(item.price).toFixed(0)}</td>
+      <td style="text-align:right;padding:4px 1px;vertical-align:top">${parseFloat(item.total).toFixed(0)}</td>
     </tr>`;
   });
 
   const totalQty = items.reduce((s,i)=>s+parseInt(i.qty||1),0);
-  html += `<tr style="border-top:2px solid #000;background:#f0f0f0">
-    <td colspan="2" style="padding:4px 2px;text-align:right;font-weight:bold">Items: ${items.length}</td>
-    <td style="text-align:center;padding:4px 2px;font-weight:bold">${totalQty}</td>
+  html += `<tr style="border-top:2px solid #000">
+    <td colspan="2" style="padding:4px 1px;font-weight:bold">Items: ${items.length}</td>
+    <td style="text-align:center;padding:4px 1px;font-weight:bold">${totalQty}</td>
     <td></td>
-    <td style="text-align:right;padding:4px 2px;font-weight:bold">${parseFloat(t.sub).toFixed(0)}</td>
+    <td style="text-align:right;padding:4px 1px;font-weight:bold">${parseFloat(t.sub).toFixed(0)}</td>
   </tr>
   </tbody></table>
 
   <div class="tp-solid" style="margin:5px 0"></div>
 
-  <div style="font-size:11px">
-    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:3px 0"><span>Subtotal</span><span>${parseFloat(t.sub).toFixed(0)}</span></div>`:''}
-    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:3px 0"><span>Discount(${t.disc}%)</span><span>-${parseFloat(t.discAmt).toFixed(0)}</span></div>`:''}
-    ${parseFloat(t.gst)>0?`<div style="display:flex;justify-content:space-between;margin:3px 0"><span>GST(${Math.round(t.gstRate)}%)</span><span>${parseFloat(t.gst).toFixed(0)}</span></div>`:''}
+  <div style="font-size:11px;font-family:'Courier New',monospace">
+    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:2px 0"><span>Subtotal</span><span>${parseFloat(t.sub).toFixed(0)}</span></div>`:''}
+    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:2px 0"><span>Discount(${t.disc}%)</span><span>-${parseFloat(t.discAmt).toFixed(0)}</span></div>`:''}
+    ${parseFloat(t.gst)>0?`<div style="display:flex;justify-content:space-between;margin:2px 0"><span>GST(${Math.round(t.gstRate)}%)</span><span>${parseFloat(t.gst).toFixed(0)}</span></div>`:''}
     <div class="tp-solid" style="margin:4px 0"></div>
-    <div style="display:flex;justify-content:space-between;margin:3px 0;font-weight:bold;font-size:13px">
+    <div style="display:flex;justify-content:space-between;margin:2px 0;font-weight:bold;font-size:12px">
       <span>TOTAL</span><span>Rs.${parseFloat(t.grand).toFixed(0)}</span>
     </div>
-    <div style="display:flex;justify-content:space-between;margin:3px 0">
+    <div style="display:flex;justify-content:space-between;margin:2px 0">
       <span>Payment</span><span>${payment}</span>
     </div>
-    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:3px 0;font-weight:bold"><span>You Saved</span><span>Rs.${parseFloat(t.discAmt).toFixed(0)}</span></div>`:''}
+    ${t.disc>0?`<div style="display:flex;justify-content:space-between;margin:2px 0;font-weight:bold"><span>You Saved</span><span>Rs.${parseFloat(t.discAmt).toFixed(0)}</span></div>`:''}
   </div>
 
-  ${note?`<div class="tp-solid" style="margin:4px 0"></div><div style="font-size:10px">Note: ${note}</div>`:''}
+  ${note?`<div class="tp-solid" style="margin:4px 0"></div><div style="font-size:9px;font-family:'Courier New',monospace">Note: ${note}</div>`:''}
   <div class="tp-solid" style="margin:5px 0"></div>
-  <div style="font-size:9px;line-height:1.7;color:#111">${terms}</div>
+  <div style="font-size:9px;line-height:1.7;font-family:'Courier New',monospace">${terms}</div>
   <div style="height:8mm"></div>`;
 
   const el = document.getElementById('thermalPrint');
