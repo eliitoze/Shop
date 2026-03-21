@@ -2458,15 +2458,14 @@ function thermalPrint(invData){
   <div class="tp-solid"></div>
   <table style="width:100%;border-collapse:collapse;table-layout:fixed;${f}font-size:10px">
     <colgroup>
-      <col style="width:9%"><col style="width:43%"><col style="width:9%"><col style="width:18%"><col style="width:21%">
+      <col style="width:8%"><col style="width:52%"><col style="width:10%"><col style="width:30%">
     </colgroup>
     <thead>
       <tr style="border-bottom:1px solid #000">
-        <th style="text-align:left;padding:2px 1px">SR</th>
-        <th style="text-align:left;padding:2px 1px">Name</th>
-        <th style="text-align:center;padding:2px 1px">Qty</th>
-        <th style="text-align:right;padding:2px 1px">Price</th>
-        <th style="text-align:right;padding:2px 1px">Amt</th>
+        <th style="text-align:left;padding:2px 1px;font-weight:700;font-family:'Courier New',monospace;font-size:10px">SR</th>
+        <th style="text-align:left;padding:2px 1px;font-weight:700;font-family:'Courier New',monospace;font-size:10px">Name</th>
+        <th style="text-align:center;padding:2px 1px;font-weight:700;font-family:'Courier New',monospace;font-size:10px">Qty</th>
+        <th style="text-align:right;padding:2px 1px;font-weight:700;font-family:'Courier New',monospace;font-size:10px">Amount</th>
       </tr>
     </thead>
     <tbody>`;
@@ -2474,17 +2473,18 @@ function thermalPrint(invData){
   items.forEach((item,i)=>{
     html += `<tr>
       <td style="padding:3px 1px;vertical-align:top">${i+1}</td>
-      <td style="padding:3px 1px;word-break:break-word;overflow-wrap:break-word">${item.name}</td>
+      <td style="padding:3px 1px;word-break:break-word;overflow-wrap:break-word">
+        ${item.name}
+        <div style="font-size:9px;color:#333">@${parseFloat(item.price).toFixed(0)}</div>
+      </td>
       <td style="text-align:center;padding:3px 1px;vertical-align:top">${item.qty}</td>
-      <td style="text-align:right;padding:3px 1px;vertical-align:top">${parseFloat(item.price).toFixed(0)}</td>
-      <td style="text-align:right;padding:3px 1px;vertical-align:top">${parseFloat(item.total).toFixed(0)}</td>
+      <td style="text-align:right;padding:3px 1px;vertical-align:top;font-weight:bold">${parseFloat(item.total).toFixed(0)}</td>
     </tr>`;
   });
 
   const totalQty = items.reduce((s,i)=>s+parseInt(i.qty||1),0);
   html += `<tr style="border-top:1px solid #000">
     <td colspan="3" style="padding:3px 1px;font-weight:bold">Items:${items.length} Qty:${totalQty}</td>
-    <td></td>
     <td style="text-align:right;padding:3px 1px;font-weight:bold">${parseFloat(t.sub).toFixed(0)}</td>
   </tr></tbody></table>
   <div class="tp-solid"></div>
