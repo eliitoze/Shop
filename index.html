@@ -2474,11 +2474,8 @@ function thermalPrint(invData){
 
   items.forEach((item,i)=>{
     html += `<tr>
-      <td style="padding:3px 1px;vertical-align:top">${i+1}</td>
-      <td style="padding:3px 1px;word-break:break-word;overflow-wrap:break-word">
-        ${item.name}
-        <div style="font-size:9px;color:#333">@${parseFloat(item.price).toFixed(0)}</div>
-      </td>
+      <td style="padding:3px 4px;vertical-align:top">${i+1}</td>
+      <td style="padding:3px 1px;word-break:break-word;overflow-wrap:break-word">${item.name}</td>
       <td style="text-align:center;padding:3px 1px;vertical-align:top">${item.qty}</td>
       <td style="text-align:right;padding:3px 1px;vertical-align:top;font-weight:bold">${parseFloat(item.total).toFixed(0)}</td>
     </tr>`;
@@ -3467,6 +3464,47 @@ async function delCust(id){
 }
 
 // ===== INVOICES =====
+function editInvoice(id){
+  const inv = S.invoices.find(x=>x.id===id);
+  if(!inv){ toast('Bill not found','error'); return; }
+  // Billing page par navigate karo ane data fill karo
+  showPage('billing', document.querySelectorAll('.nav-item')[1]);
+  setTimeout(()=>{
+    // Customer fill
+    document.getElementById('vbCustName').value = inv.customer_name||'';
+    document.getElementById('vbPhone').value = inv.phone||'';
+    if(inv.customer_id){
+      document.getElementById('vbCustId').value = inv.customer_id;
+      const c = S.customers.find(x=>x.id===inv.customer_id);
+      if(c) document.getElementById('vbPhone').value = c.phone||'';
+    }
+    // Bill number
+    window._manualBillNum = inv.bill_number;
+    document.getElementById('vbInvNo').value = inv.bill_number;
+    // Items
+    VB.rows = [];
+    (inv.items||[]).forEach(item=>{
+      VB.rows.push({
+        id: Date.now()+Math.random(),
+        pid: item.pid||null,
+        itemName: item.name,
+        qty: item.qty||1,
+        price: item.price||0,
+        mrp: item.price||0,
+        amount: item.total||0,
+        cost: item.cost||0,
+        unit: item.unit||'Pcs'
+      });
+    });
+    // Discount
+    document.getElementById('vbDiscPct').value = inv.discount_pct||'';
+    document.getElementById('vbNote').value = inv.note||'';
+    vbRender();
+    vbCalc();
+    toast('Bill #'+String(inv.bill_number).padStart(4,'0')+' edit mode','success');
+  }, 300);
+}
+
 async function deleteInvoice(id){
   if(!confirm('Aa bill delete karvu chhe?')) return;
   try {
@@ -3485,22 +3523,22 @@ function renderInvs(){
   const tbody=document.getElementById('invTable');
   if(!tbody) return;
   const q=(document.getElementById('invSearch')?.value||'').toLowerCase().trim();
+  const today = new Date().toLocaleDateString('en-IN');
 
-  // Filter invoices by search query
+  // Default: today's bills — search hoy to filtered
   const filtered = q ? S.invoices.filter(inv=>{
     const billNo = String(inv.bill_number).padStart(4,'0');
     const name   = (inv.customer_name||'').toLowerCase();
-    // Check customer phone
     const cust   = inv.customer_id ? S.customers.find(c=>c.id===inv.customer_id) : null;
     const phone  = (cust?.phone||'').toLowerCase();
     return billNo.includes(q) || name.includes(q) || phone.includes(q);
-  }) : S.invoices;
+  }) : S.invoices.filter(inv => inv.bill_date === today);
 
   // Update count label
   const countEl = document.getElementById('invCount');
   if(countEl){
     if(q) countEl.textContent = filtered.length + ' result' + (filtered.length!==1?'s':'') + ' found for "' + q + '"';
-    else  countEl.textContent = S.invoices.length + ' bills total';
+    else  countEl.textContent = 'Today: ' + filtered.length + ' bills — Show All button click karo badha joava';
   }
 
   if(!filtered.length){
@@ -3517,8 +3555,8 @@ function renderInvs(){
       <td style="font-family:'DM Mono',monospace"><strong>₹${parseFloat(inv.total).toFixed(2)}</strong></td>
       <td onclick="event.stopPropagation()" style="display:flex;gap:5px">
         <button class="btn btn-print btn-sm" onclick="thermalPrint(S.invoices.find(x=>x.id==${inv.id}))">🖨</button>
+        <button class="btn btn-blue btn-sm" onclick="editInvoice(${inv.id})" title="Edit">✏</button>
         <button class="btn btn-wa btn-sm" onclick="shareImageWA(${inv.id})" title="WhatsApp Share">💬</button>
-        <button class="btn btn-blue btn-sm" onclick="openFullInvoice(${inv.id})" title="Open Full Invoice">🔗</button>
         <button class="btn btn-red btn-sm" onclick="deleteInvoice(${inv.id})" title="Delete">🗑</button>
       </td>
     </tr>`).join('');
@@ -3641,7 +3679,21 @@ function updateDash(){
   if(priv){
     rd.innerHTML='<div class="empty"><div class="ei">🙈</div><p>Privacy mode on</p></div>';
   } else {
-    rd.innerHTML=!S.invoices.length?'<div class="empty"><div class="ei">🧾</div><p>No bills</p></div>':'<table><thead><tr><th>Bill</th><th>Customer</th><th>Amount</th></tr></thead><tbody>'+S.invoices.slice(0,5).map(i=>`<tr><td>#${String(i.bill_number).padStart(4,'0')}</td><td>${i.customer_name}</td><td>₹${parseFloat(i.total).toFixed(2)}</td></tr>`).join('')+'</tbody></table>';
+    if(!todayInv.length){
+      rd.innerHTML='<div class="empty"><div class="ei">🧾</div><p>Today no bills yet</p></div>';
+    } else {
+      rd.innerHTML='<table style="width:100%"><thead><tr><th>Bill</th><th>Customer</th><th>Amt</th><th></th></tr></thead><tbody>'+
+        todayInv.slice(0,10).map(i=>`<tr>
+          <td><strong style="font-family:'DM Mono',monospace">#${String(i.bill_number).padStart(4,'0')}</strong></td>
+          <td style="font-size:12px">${i.customer_name||'Walk-in'}</td>
+          <td style="font-family:'DM Mono',monospace">₹${parseFloat(i.total).toFixed(0)}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="openBillDetail(${i.id})" title="Open">👁</button>
+            <button class="btn btn-blue btn-sm" onclick="editInvoice(${i.id})" title="Edit">✏</button>
+          </td>
+        </tr>`).join('')+
+      '</tbody></table>';
+    }
   }
   const ld=document.getElementById('d-lowlist');
   ld.innerHTML=!low.length?'<div class="empty"><div class="ei">✅</div><p>All in stock</p></div>':low.map(p=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${p.name}</span><span class="badge badge-red">Stock: ${p.stock}</span></div>`).join('');
