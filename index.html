@@ -3184,26 +3184,36 @@ function renderProds(){
   const grid=document.getElementById('prodGrid');
   if(!grid) return;
   const bulk = window._bulkMode || false;
-  if(!list.length){ grid.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="ei">📦</div><p>No products</p></div>'; return; }
-  grid.innerHTML=list.map(p=>{
-    const pr=p.cost?(p.price-p.cost).toFixed(2):0;
-    const pct=p.cost&&p.cost>0?((p.price-p.cost)/p.cost*100).toFixed(1):0;
-    const checked = (window._selectedProds||new Set()).has(p.id) ? 'checked' : '';
-    return`<div class="prod-card" id="pcard-${p.id}" style="${checked?'border-color:var(--accent);background:rgba(110,231,183,0.06)':''}">
-      ${bulk ? `<label style="display:flex;align-items:center;gap:7px;margin-bottom:6px;cursor:pointer">
-        <input type="checkbox" ${checked} onchange="toggleProdSel(${p.id},this.checked)" style="width:15px;height:15px;accent-color:var(--accent)">
-        <span style="font-size:11px;color:var(--muted)">Select</span>
-      </label>` : ''}
-      <div class="pc-name">${p.name}</div>
-      <div class="pc-sku">${p.sku||'—'} · ${p.category||'—'}</div>
-      <div class="pc-price">₹${p.price}</div>
-      ${p.cost?`<div class="pc-profit">+₹${pr} (${pct}%)</div>`:''}
-      <div style="margin-top:5px"><span class="badge ${p.stock<=p.min_stock?'badge-red':'badge-green'}">Stock: ${p.stock}</span></div>
-      <div class="pc-actions">
-        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="editProd(${p.id})">✏</button>
-        <button class="btn btn-danger btn-sm" onclick="delProd(${p.id})">🗑</button>
-      </div>
-    </div>`;}).join('');
+  if(!list.length){ grid.innerHTML='<div class="empty"><div class="ei">📦</div><p>No products</p></div>'; return; }
+
+  grid.innerHTML = `<div class="card"><div class="tbl-wrap"><table style="width:100%">
+    <thead><tr>
+      ${bulk?'<th style="width:30px"></th>':''}
+      <th>Name</th>
+      <th>Price</th>
+      <th>Stock</th>
+      <th>Action</th>
+    </tr></thead>
+    <tbody>
+    ${list.map(p=>{
+      const checked = (window._selectedProds||new Set()).has(parseInt(p.id)) ? 'checked' : '';
+      return `<tr id="pcard-${p.id}" style="${checked?'background:rgba(110,231,183,0.06)':''}">
+        ${bulk?`<td><input type="checkbox" ${checked} onchange="toggleProdSel(${p.id},this.checked)" style="accent-color:var(--accent)"></td>`:''}
+        <td>
+          <div style="font-weight:600;font-size:13px">${p.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${p.sku||'—'} · ${p.category||'—'}</div>
+          ${p.cost?`<div style="font-size:11px;color:var(--accent)">+₹${(p.price-p.cost).toFixed(0)} margin</div>`:''}
+        </td>
+        <td style="font-weight:600">₹${p.price}</td>
+        <td><span class="badge ${p.stock<=(p.min_stock||5)?'badge-red':'badge-green'}">${p.stock}</span></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-sm" onclick="editProd(${p.id})">✏</button>
+          <button class="btn btn-danger btn-sm" onclick="delProd(${p.id})">🗑</button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table></div></div>`;
 }
 
 function openAddProd(){
@@ -3667,7 +3677,13 @@ function updateDash(){
   const todayInv=S.invoices.filter(i=>i.bill_date===today);
   const sale=todayInv.reduce((s,i)=>s+parseFloat(i.total||0),0);
   const profit=todayInv.reduce((s,i)=>s+parseFloat(i.profit||0),0);
-  const margin=sale>0?((profit/sale)*100).toFixed(1):0;
+
+  // Stats grid — hide when privacy ON
+  const statsGrid = document.querySelector('#page-dashboard .stats-grid');
+  const twoCol = document.querySelector('#page-dashboard .two-col');
+  if(statsGrid) statsGrid.style.display = priv ? 'none' : '';
+  if(twoCol) twoCol.style.display = priv ? 'block' : '';
+
   document.getElementById('d-sale').textContent = priv ? mask : '₹'+sale.toFixed(0);
   document.getElementById('d-bills').textContent = priv ? mask : todayInv.length;
   document.getElementById('d-profit').textContent='🔐';
@@ -3675,10 +3691,12 @@ function updateDash(){
   document.getElementById('d-prods').textContent=S.products.length;
   const low=S.products.filter(p=>p.stock<=p.min_stock);
   document.getElementById('d-low').textContent=low.length;
+
   const rd=document.getElementById('d-recent');
+  // Privacy ON — recent bills show, Low Stock hide
+  const ld=document.getElementById('d-lowlist');
   if(priv){
-    rd.innerHTML='<div class="empty"><div class="ei">🙈</div><p>Privacy mode on</p></div>';
-  } else {
+    if(ld && ld.parentElement) ld.parentElement.style.display='none';
     if(!todayInv.length){
       rd.innerHTML='<div class="empty"><div class="ei">🧾</div><p>Today no bills yet</p></div>';
     } else {
@@ -3694,9 +3712,25 @@ function updateDash(){
         </tr>`).join('')+
       '</tbody></table>';
     }
+  } else {
+    if(ld && ld.parentElement) ld.parentElement.style.display='';
+    if(!todayInv.length){
+      rd.innerHTML='<div class="empty"><div class="ei">🧾</div><p>Today no bills yet</p></div>';
+    } else {
+      rd.innerHTML='<table style="width:100%"><thead><tr><th>Bill</th><th>Customer</th><th>Amt</th><th></th></tr></thead><tbody>'+
+        todayInv.slice(0,10).map(i=>`<tr>
+          <td><strong style="font-family:'DM Mono',monospace">#${String(i.bill_number).padStart(4,'0')}</strong></td>
+          <td style="font-size:12px">${i.customer_name||'Walk-in'}</td>
+          <td style="font-family:'DM Mono',monospace">₹${parseFloat(i.total).toFixed(0)}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="openBillDetail(${i.id})" title="Open">👁</button>
+            <button class="btn btn-blue btn-sm" onclick="editInvoice(${i.id})" title="Edit">✏</button>
+          </td>
+        </tr>`).join('')+
+      '</tbody></table>';
+    }
+    ld.innerHTML=!low.length?'<div class="empty"><div class="ei">✅</div><p>All in stock</p></div>':low.map(p=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${p.name}</span><span class="badge badge-red">Stock: ${p.stock}</span></div>`).join('');
   }
-  const ld=document.getElementById('d-lowlist');
-  ld.innerHTML=!low.length?'<div class="empty"><div class="ei">✅</div><p>All in stock</p></div>':low.map(p=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${p.name}</span><span class="badge badge-red">Stock: ${p.stock}</span></div>`).join('');
 }
 
 // ===== REPORTS (PIN protected) =====
