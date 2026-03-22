@@ -25,6 +25,8 @@
     width: 100% !important;
     display: block !important;
   }
+  #thermalPrint thead tr { background: #fff !important; }
+  #thermalPrint thead td, #thermalPrint thead th { background: #fff !important; color: #000 !important; }
   @page { size: 58mm auto; margin: 2mm 1mm; }
 }
 
@@ -2461,11 +2463,11 @@ function thermalPrint(invData){
       <col style="width:8%"><col style="width:52%"><col style="width:10%"><col style="width:30%">
     </colgroup>
     <thead>
-      <tr style="border-bottom:1px solid #000">
-        <td style="padding:3px 1px;vertical-align:top;font-weight:bold;color:#000">SR</td>
-        <td style="padding:3px 1px;word-break:break-word;overflow-wrap:break-word;font-weight:bold;color:#000">Name</td>
-        <td style="text-align:center;padding:3px 1px;vertical-align:top;font-weight:bold;color:#000">Qty</td>
-        <td style="text-align:right;padding:3px 1px;vertical-align:top;font-weight:bold;color:#000">Amt</td>
+      <tr style="border-bottom:1px solid #000;background:#fff">
+        <td style="padding:3px 1px;vertical-align:top;font-weight:bold;color:#000;font-family:Arial,sans-serif;font-size:11px">SR</td>
+        <td style="padding:3px 1px;word-break:break-word;overflow-wrap:break-word;font-weight:bold;color:#000;font-family:Arial,sans-serif;font-size:11px">NAME</td>
+        <td style="text-align:center;padding:3px 1px;vertical-align:top;font-weight:bold;color:#000;font-family:Arial,sans-serif;font-size:11px">QTY</td>
+        <td style="text-align:right;padding:3px 1px;vertical-align:top;font-weight:bold;color:#000;font-family:Arial,sans-serif;font-size:11px">AMT</td>
       </tr>
     </thead>
     <tbody>`;
