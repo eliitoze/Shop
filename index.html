@@ -1305,13 +1305,18 @@ input:checked + .vb-slider:before { transform: translateX(16px); }
           <div id="userList"></div>
         </div>
 
-        <!-- Change Password -->
+        <!-- Change Username & Password -->
         <div class="card" style="margin-top:14px">
-          <div class="card-title">🔑 Password Change Karo</div>
-          <div class="form-group" style="margin-bottom:10px"><label>Current Password</label><input type="password" id="cpCurrent" placeholder="••••"></div>
-          <div class="form-group" style="margin-bottom:10px"><label>New Password</label><input type="password" id="cpNew" placeholder="Min 4 chars"></div>
-          <div class="form-group" style="margin-bottom:12px"><label>Confirm New Password</label><input type="password" id="cpConfirm" placeholder="Repeat new password"></div>
-          <button class="btn btn-primary" onclick="changeMyPassword()">🔑 Password Update Karo</button>
+          <div class="card-title">🔑 Username & Password Change Karo</div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>New Username</label>
+            <input type="text" id="cpUsername" placeholder="New username (khali rakho to same rahe)"
+              style="width:100%;padding:10px 12px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;box-sizing:border-box">
+          </div>
+          <div class="form-group" style="margin-bottom:10px"><label>Current Password</label><input type="password" id="cpCurrent" placeholder="••••" style="width:100%;padding:10px 12px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;box-sizing:border-box"></div>
+          <div class="form-group" style="margin-bottom:10px"><label>New Password (khali rakho to same rahe)</label><input type="password" id="cpNew" placeholder="Min 4 chars" style="width:100%;padding:10px 12px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;box-sizing:border-box"></div>
+          <div class="form-group" style="margin-bottom:12px"><label>Confirm New Password</label><input type="password" id="cpConfirm" placeholder="Repeat new password" style="width:100%;padding:10px 12px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;outline:none;box-sizing:border-box"></div>
+          <button class="btn btn-primary" onclick="changeMyCredentials()">✅ Update Karo</button>
         </div>
 
         <!-- Logout -->
@@ -1541,14 +1546,15 @@ async function doLogin(){
   await init();
 }
 
-async function changeMyPassword(){
+async function changeMyCredentials(){
+  const newUsername = (document.getElementById('cpUsername')?.value||'').trim();
   const cur  = document.getElementById('cpCurrent').value;
   const np   = document.getElementById('cpNew').value;
   const conf = document.getElementById('cpConfirm').value;
 
-  if(!cur||!np||!conf){ toast('Badha fields bharvo!','error'); return; }
-  if(np.length < 4){ toast('New password min 4 characters joiye!','error'); return; }
-  if(np !== conf){ toast('New password match nathi!','error'); return; }
+  if(!cur){ toast('Current password nakho!','error'); return; }
+  if(np && np.length < 4){ toast('New password min 4 characters joiye!','error'); return; }
+  if(np && np !== conf){ toast('New password match nathi!','error'); return; }
 
   const users = getStoredUsers();
   const idx = users.findIndex(u => u.username === currentUser.username);
@@ -1560,17 +1566,44 @@ async function changeMyPassword(){
   const curOk = u.passwordHash ? u.passwordHash === curHash : u.password === cur;
   if(!curOk){ toast('Current password wrong chhe!','error'); return; }
 
-  // Save new password
-  users[idx].passwordHash = await hashPass(np);
-  delete users[idx].password; // remove plain text if exists
+  // Update username if provided
+  if(newUsername && newUsername !== currentUser.username){
+    const exists = users.find(u=>u.username===newUsername);
+    if(exists){ toast('Aa username already use thay chhe!','error'); return; }
+    users[idx].username = newUsername;
+    currentUser.username = newUsername;
+    sessionStorage.setItem('sb_session', JSON.stringify(currentUser));
+  }
+
+  // Update password if provided
+  if(np){
+    users[idx].passwordHash = await hashPass(np);
+    delete users[idx].password;
+  }
+
   saveStoredUsers(users);
 
+  // Supabase sync
+  try{
+    await api(`app_users?username=eq.${u.username}`,'PATCH',{
+      username: users[idx].username,
+      passwordHash: users[idx].passwordHash
+    });
+  } catch(e){ /* offline ok */ }
+
   // Clear fields
+  document.getElementById('cpUsername').value = '';
   document.getElementById('cpCurrent').value = '';
   document.getElementById('cpNew').value = '';
   document.getElementById('cpConfirm').value = '';
 
-  toast('✅ Password successfully change thai gayu!','success');
+  applyRoleRestrictions();
+  toast('✅ Credentials successfully update thai gaya!','success');
+}
+
+async function changeMyPassword(){
+  // Backward compat — redirect to new function
+  await changeMyCredentials();
 }
 
 function doLogout(){
@@ -3197,16 +3230,15 @@ function renderProds(){
     <tbody>
     ${list.map(p=>{
       const checked = (window._selectedProds||new Set()).has(parseInt(p.id)) ? 'checked' : '';
-      return `<tr id="pcard-${p.id}" style="${checked?'background:rgba(110,231,183,0.06)':''}">
-        ${bulk?`<td><input type="checkbox" ${checked} onchange="toggleProdSel(${p.id},this.checked)" style="accent-color:var(--accent)"></td>`:''}
+      return `<tr id="pcard-${p.id}" style="cursor:pointer;${checked?'background:rgba(110,231,183,0.06)':''}" onclick="editProd(${p.id})">
+        ${bulk?`<td onclick="event.stopPropagation()"><input type="checkbox" ${checked} onchange="toggleProdSel(${p.id},this.checked)" style="accent-color:var(--accent)"></td>`:''}
         <td>
           <div style="font-weight:600;font-size:13px">${p.name}</div>
           <div style="font-size:11px;color:var(--muted)">${p.sku||'—'} · ${p.category||'—'}</div>
-          ${p.cost?`<div style="font-size:11px;color:var(--accent)">+₹${(p.price-p.cost).toFixed(0)} margin</div>`:''}
         </td>
         <td style="font-weight:600">₹${p.price}</td>
         <td><span class="badge ${p.stock<=(p.min_stock||5)?'badge-red':'badge-green'}">${p.stock}</span></td>
-        <td style="white-space:nowrap">
+        <td onclick="event.stopPropagation()" style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" onclick="editProd(${p.id})">✏</button>
           <button class="btn btn-danger btn-sm" onclick="delProd(${p.id})">🗑</button>
         </td>
