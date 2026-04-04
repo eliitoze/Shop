@@ -1469,76 +1469,198 @@ let pinEntry = '';
 
 // ===== INIT =====
 
-// ===== AUTHENTICATION SYSTEM =====
-// Users stored in Supabase 'app_users' table OR localStorage fallback
+// ===== AUTHENTICATION SYSTEM — SUPABASE SERVER-SIDE =====
+// Users: Supabase 'app_users' table (server-side) + localStorage offline fallback
+// Table columns: id, username, password_hash, role, approved, created_at
 // Roles: master (full), manager (bills+reports), staff (billing only)
 
-let currentUser = null; // {username, role, approved}
+let currentUser = null; // {id, username, role, approved}
 
-const DEFAULT_MASTER = { username:'master', password:'master123', role:'master', approved:true };
-
-// Simple hash for password (not cryptographic but better than plaintext)
+// ── Hash password with SHA-256 ──
 async function hashPass(pass){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pass+'shopbill_salt'));
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pass+'shopbill_salt_v2'));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-function getStoredUsers(){
+// ── Supabase thhi users fetch karo ──
+async function fetchUsersFromServer(){
   try{
-    const raw = localStorage.getItem('sb_users');
-    if(raw) return JSON.parse(raw);
-  }catch(e){}
-  // Default: only master user
-  const users = [DEFAULT_MASTER];
-  localStorage.setItem('sb_users', JSON.stringify(users));
-  return users;
+    const rows = await api('app_users?order=created_at');
+    // Cache locally for offline
+    localStorage.setItem('sb_users_cache', JSON.stringify(rows));
+    return rows;
+  } catch(e){
+    // Offline fallback
+    const cached = localStorage.getItem('sb_users_cache');
+    if(cached) return JSON.parse(cached);
+    return [];
+  }
 }
 
-function saveStoredUsers(users){
-  localStorage.setItem('sb_users', JSON.stringify(users));
+// ── Default master user ensure karo (first time setup) ──
+async function ensureMasterUser(){
+  try{
+    const rows = await api('app_users?username=eq.281981');
+    if(!rows || rows.length===0){
+      // Master user nathi — banavo
+      const ph = await hashPass('152207');
+      await api('app_users','POST',{
+        username:'281981', password_hash:ph,
+        role:'master', approved:true
+      });
+      console.log('Master user created on server');
+    }
+    // Migrate localStorage users to server if any
+    await migrateLocalUsers();
+  } catch(e){
+    console.warn('ensureMasterUser failed (offline?):', e.message);
+  }
 }
 
+// ── Old localStorage users ne Supabase ma migrate karo ──
+async function migrateLocalUsers(){
+  const raw = localStorage.getItem('sb_users');
+  if(!raw) return;
+  try{
+    const localUsers = JSON.parse(raw);
+    for(const u of localUsers){
+      if(u.username === '281981') continue; // master skip
+      // Check if already on server
+      const exists = await api('app_users?username=eq.'+encodeURIComponent(u.username));
+      if(exists && exists.length > 0) continue; // already chhe
+      // Server par save karo
+      const ph = u.passwordHash || (u.password ? await hashPass(u.password) : await hashPass('changeme'));
+      await api('app_users','POST',{
+        username: u.username,
+        password_hash: ph,
+        role: u.role||'staff',
+        approved: u.approved===true
+      });
+    }
+    // Migration done — localStorage clear karo
+    localStorage.removeItem('sb_users');
+    console.log('Local users migrated to Supabase');
+  } catch(e){
+    console.warn('Migration failed:', e.message);
+  }
+}
+
+// ── LOGIN ──
 async function doLogin(){
   const username = (document.getElementById('loginUser').value||'').trim();
   const password = (document.getElementById('loginPass').value||'').trim();
   const errEl = document.getElementById('loginError');
+  const btn = document.querySelector('#loginScreen .btn-primary');
   errEl.style.display='none';
 
   if(!username||!password){
     errEl.textContent='Username ane password nakho!'; errEl.style.display='block'; return;
   }
 
-  const users = getStoredUsers();
-  const user = users.find(u=>u.username===username);
+  // Loading state
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Verifying...'; }
 
-  if(!user){
-    errEl.textContent='User maldo nahi. Master pase request karo.'; errEl.style.display='block'; return;
+  try{
+    const hashed = await hashPass(password);
+
+    // 1. Try Supabase first
+    let user = null;
+    try{
+      const rows = await api('app_users?username=eq.'+encodeURIComponent(username));
+      if(rows && rows.length > 0) user = rows[0];
+    } catch(e){
+      // Offline — use cache
+      const cached = localStorage.getItem('sb_users_cache');
+      if(cached){
+        const arr = JSON.parse(cached);
+        user = arr.find(u=>u.username===username)||null;
+      }
+    }
+
+    // 2. Fallback: check old localStorage (migration period)
+    if(!user){
+      const raw = localStorage.getItem('sb_users');
+      if(raw){
+        const arr = JSON.parse(raw);
+        const lu = arr.find(u=>u.username===username);
+        if(lu){
+          // Old format ma chhe — password check karo
+          const oldHash = lu.passwordHash || (lu.password ? await hashPass(lu.password) : '');
+          const oldPlain = lu.password;
+          const oldOk = (hashed === oldHash) || (password === oldPlain);
+          if(oldOk && lu.approved){
+            // Server par save karo + login
+            try{
+              await api('app_users','POST',{
+                username: lu.username, password_hash: hashed,
+                role: lu.role||'staff', approved: true
+              });
+            } catch(e2){}
+            currentUser = {username: lu.username, role: lu.role||'staff'};
+            sessionStorage.setItem('sb_session', JSON.stringify(currentUser));
+            document.getElementById('loginScreen').style.display='none';
+            document.getElementById('mainApp').style.display='block';
+            if(btn){ btn.disabled=false; btn.textContent='🔑 Sign In'; }
+            applyRoleRestrictions();
+            await init();
+            return;
+          } else {
+            errEl.textContent = lu.approved===false ? 'Account approved nathi!' : 'Password wrong chhe!';
+            errEl.style.display='block';
+            if(btn){ btn.disabled=false; btn.textContent='🔑 Sign In'; }
+            return;
+          }
+        }
+      }
+    }
+
+    if(!user){
+      errEl.textContent='User maldo nahi. Master pase request karo.'; errEl.style.display='block';
+      if(btn){ btn.disabled=false; btn.textContent='🔑 Sign In'; }
+      return;
+    }
+    if(!user.approved){
+      errEl.textContent='Tamaro account approved nathi. Master ne janavjo.'; errEl.style.display='block';
+      if(btn){ btn.disabled=false; btn.textContent='🔑 Sign In'; }
+      return;
+    }
+
+    // Password verify
+    // Support: new hash (v2 salt), old hash (v1 salt), plain text (migration)
+    const newHash = hashed;
+    const oldHash = await (async()=>{
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password+'shopbill_salt'));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    })();
+    const passOk = (user.password_hash === newHash) || (user.password_hash === oldHash);
+
+    if(!passOk){
+      errEl.textContent='Password wrong chhe!'; errEl.style.display='block';
+      if(btn){ btn.disabled=false; btn.textContent='🔑 Sign In'; }
+      return;
+    }
+
+    // If old hash matched — upgrade to new hash
+    if(user.password_hash === oldHash && user.password_hash !== newHash){
+      try{ await api('app_users?id=eq.'+user.id,'PATCH',{password_hash: newHash}); } catch(e){}
+    }
+
+    // ✅ Login success
+    currentUser = {id: user.id, username: user.username, role: user.role};
+    sessionStorage.setItem('sb_session', JSON.stringify(currentUser));
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('mainApp').style.display='block';
+    if(btn){ btn.disabled=false; btn.textContent='🔑 Sign In'; }
+    applyRoleRestrictions();
+    await init();
+
+  } catch(e){
+    errEl.textContent='Connection error: '+e.message; errEl.style.display='block';
+    if(btn){ btn.disabled=false; btn.textContent='🔑 Sign In'; }
   }
-  if(!user.approved){
-    errEl.textContent='Tamaro account approved nathi. Master ne janavjo.'; errEl.style.display='block'; return;
-  }
-
-  // Check password
-  const hashed = await hashPass(password);
-  const passOk = user.passwordHash
-    ? user.passwordHash === hashed
-    : user.password === password; // plain fallback for default user
-
-  if(!passOk){
-    errEl.textContent='Password wrong chhe!'; errEl.style.display='block'; return;
-  }
-
-  // Logged in!
-  currentUser = {username: user.username, role: user.role};
-  sessionStorage.setItem('sb_session', JSON.stringify(currentUser));
-
-  document.getElementById('loginScreen').style.display='none';
-  document.getElementById('mainApp').style.display='block';
-
-  applyRoleRestrictions();
-  await init();
 }
 
+// ── CHANGE PASSWORD ──
 async function changeMyPassword(){
   const cur  = document.getElementById('cpCurrent').value;
   const np   = document.getElementById('cpNew').value;
@@ -1548,29 +1670,41 @@ async function changeMyPassword(){
   if(np.length < 4){ toast('New password min 4 characters joiye!','error'); return; }
   if(np !== conf){ toast('New password match nathi!','error'); return; }
 
-  const users = getStoredUsers();
-  const idx = users.findIndex(u => u.username === currentUser.username);
-  if(idx === -1){ toast('User maldo nahi!','error'); return; }
+  try{
+    // Verify current password from server
+    const rows = await api('app_users?username=eq.'+encodeURIComponent(currentUser.username));
+    if(!rows||!rows.length){ toast('User maldo nahi!','error'); return; }
+    const u = rows[0];
+    const curHash = await hashPass(cur);
+    const oldSaltHash = await (async()=>{
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cur+'shopbill_salt'));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    })();
+    const curOk = (u.password_hash === curHash)||(u.password_hash === oldSaltHash);
+    if(!curOk){ toast('Current password wrong chhe!','error'); return; }
 
-  // Verify current password
-  const curHash = await hashPass(cur);
-  const u = users[idx];
-  const curOk = u.passwordHash ? u.passwordHash === curHash : u.password === cur;
-  if(!curOk){ toast('Current password wrong chhe!','error'); return; }
+    // Save new password to Supabase
+    const newHash = await hashPass(np);
+    await api('app_users?id=eq.'+u.id,'PATCH',{password_hash: newHash});
 
-  // Save new password
-  users[idx].passwordHash = await hashPass(np);
-  delete users[idx].password; // remove plain text if exists
-  saveStoredUsers(users);
+    // Update cache
+    const cached = localStorage.getItem('sb_users_cache');
+    if(cached){
+      const arr = JSON.parse(cached);
+      const idx = arr.findIndex(x=>x.id===u.id);
+      if(idx>=0){ arr[idx].password_hash = newHash; localStorage.setItem('sb_users_cache', JSON.stringify(arr)); }
+    }
 
-  // Clear fields
-  document.getElementById('cpCurrent').value = '';
-  document.getElementById('cpNew').value = '';
-  document.getElementById('cpConfirm').value = '';
-
-  toast('✅ Password successfully change thai gayu!','success');
+    document.getElementById('cpCurrent').value='';
+    document.getElementById('cpNew').value='';
+    document.getElementById('cpConfirm').value='';
+    toast('✅ Password successfully change thai gayu!','success');
+  } catch(e){
+    toast('Error: '+e.message,'error');
+  }
 }
 
+// ── LOGOUT ──
 function doLogout(){
   currentUser = null;
   sessionStorage.removeItem('sb_session');
@@ -1581,55 +1715,51 @@ function doLogout(){
   document.getElementById('loginError').style.display='none';
 }
 
+// ── ROLE RESTRICTIONS ──
 function applyRoleRestrictions(){
   if(!currentUser) return;
   const role = currentUser.role;
-
-  // Update logged in display
   const laEl = document.getElementById('loggedInAs');
   const lrEl = document.getElementById('loggedInRole');
   if(laEl) laEl.textContent = 'Logged in: '+currentUser.username;
   if(lrEl) lrEl.textContent = 'Role: '+role.charAt(0).toUpperCase()+role.slice(1);
-
-  // Show user management only for master
   const umCard = document.getElementById('userMgmtCard');
   if(umCard) umCard.style.display = (role==='master')?'block':'none';
-
-  // Staff: hide reports nav
   if(role==='staff'){
     document.querySelectorAll('.nav-item').forEach(el=>{
       if(el.textContent.includes('Reports')) el.style.display='none';
       if(el.textContent.includes('Excel Import')) el.style.display='none';
     });
   }
-  // Show login shop name
   const sn = document.getElementById('loginShopName');
   if(sn) sn.textContent = S.settings.shop_name||'Eliitoze Jewelz';
 }
 
-function renderUserList(){
+// ── RENDER USER LIST (from Supabase) ──
+async function renderUserList(){
   const ul = document.getElementById('userList');
   if(!ul) return;
-  const users = getStoredUsers();
+  ul.innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px">Loading users...</div>';
+  const users = await fetchUsersFromServer();
   if(!users.length){ ul.innerHTML='<div style="color:var(--muted);font-size:13px">Koi user nathi</div>'; return; }
-
-  ul.innerHTML = users.map((u,i)=>`
+  ul.innerHTML = users.map(u=>`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <div style="flex:1;min-width:120px">
         <div style="font-size:13px;font-weight:600">${u.username}
-          ${u.username==='master'?'<span style="font-size:10px;background:#f59e0b22;color:#f59e0b;padding:2px 6px;border-radius:4px;margin-left:4px">MASTER</span>':''}
+          ${u.username==='281981'?'<span style="font-size:10px;background:#f59e0b22;color:#f59e0b;padding:2px 6px;border-radius:4px;margin-left:4px">MASTER</span>':''}
         </div>
         <div style="font-size:11px;color:var(--muted)">${u.role} · ${u.approved?'✅ Approved':'⏳ Pending'}</div>
       </div>
-      ${u.username!=='master'?`
-      <button class="btn btn-sm ${u.approved?'btn-ghost':'btn-primary'}" onclick="toggleUserApproval(${i})">
+      ${u.username!=='281981'?`
+      <button class="btn btn-sm ${u.approved?'btn-ghost':'btn-primary'}" onclick="toggleUserApproval('${u.id}',${u.approved})">
         ${u.approved?'🚫 Revoke':'✅ Approve'}
       </button>
-      <button class="btn btn-red btn-sm" onclick="deleteUser(${i})">🗑</button>
+      <button class="btn btn-red btn-sm" onclick="deleteUser('${u.id}','${u.username}')">🗑</button>
       `:'<span style="font-size:11px;color:var(--muted)">Cannot edit</span>'}
     </div>`).join('');
 }
 
+// ── ADD USER (server) ──
 async function addUser(){
   if(currentUser?.role!=='master'){ toast('Only master add kari shake','error'); return; }
   const username = (document.getElementById('nuUser').value||'').trim();
@@ -1639,38 +1769,65 @@ async function addUser(){
   if(!username||!password){ toast('Username ane password nakho!','error'); return; }
   if(password.length<4){ toast('Password min 4 characters joiye!','error'); return; }
 
-  const users = getStoredUsers();
-  if(users.find(u=>u.username===username)){ toast('Aa username pahela thi chhe!','error'); return; }
+  try{
+    // Check duplicate on server
+    const exists = await api('app_users?username=eq.'+encodeURIComponent(username));
+    if(exists && exists.length>0){ toast('Aa username pahela thi chhe!','error'); return; }
 
-  const passwordHash = await hashPass(password);
-  users.push({username, passwordHash, role, approved:false}); // Pending approval
-  saveStoredUsers(users);
-
-  document.getElementById('nuUser').value='';
-  document.getElementById('nuPass').value='';
-  renderUserList();
-  toast('✅ User added! Approve karo tyare login kari shake.','success');
+    const passwordHash = await hashPass(password);
+    await api('app_users','POST',{
+      username, password_hash: passwordHash,
+      role, approved: false
+    });
+    document.getElementById('nuUser').value='';
+    document.getElementById('nuPass').value='';
+    await renderUserList();
+    toast('✅ User added! Approve karo tyare login kari shake.','success');
+  } catch(e){
+    toast('Error: '+e.message,'error');
+  }
 }
 
-function toggleUserApproval(idx){
+// ── TOGGLE APPROVAL (server) ──
+async function toggleUserApproval(userId, currentApproved){
   if(currentUser?.role!=='master'){ toast('Only master approve kari shake','error'); return; }
-  const users = getStoredUsers();
-  if(!users[idx]||users[idx].username==='master') return;
-  users[idx].approved = !users[idx].approved;
-  saveStoredUsers(users);
-  renderUserList();
-  toast(users[idx].approved?'✅ User approved!':'🚫 User revoked!','success');
+  try{
+    const newVal = !currentApproved;
+    await api('app_users?id=eq.'+userId,'PATCH',{approved: newVal});
+    await renderUserList();
+    toast(newVal?'✅ User approved!':'🚫 User revoked!','success');
+  } catch(e){
+    toast('Error: '+e.message,'error');
+  }
 }
 
-function deleteUser(idx){
+// ── DELETE USER (server) ──
+async function deleteUser(userId, username){
   if(currentUser?.role!=='master'){ toast('Only master delete kari shake','error'); return; }
-  const users = getStoredUsers();
-  if(!users[idx]||users[idx].username==='master') return;
-  if(!confirm('Delete user "'+users[idx].username+'"?')) return;
-  users.splice(idx,1);
-  saveStoredUsers(users);
-  renderUserList();
-  toast('✅ User deleted!','success');
+  if(!confirm('Delete user "'+username+'"?')) return;
+  try{
+    await api('app_users?id=eq.'+userId,'DELETE');
+    await renderUserList();
+    toast('✅ User deleted!','success');
+  } catch(e){
+    toast('Error: '+e.message,'error');
+  }
+}
+
+// ── CHECK SESSION ──
+function checkSession(){
+  try{
+    const sess = sessionStorage.getItem('sb_session');
+    if(sess){
+      currentUser = JSON.parse(sess);
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('mainApp').style.display='block';
+      return true;
+    }
+  }catch(e){}
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('mainApp').style.display='none';
+  return false;
 }
 
 // Check existing session on page load
@@ -1722,6 +1879,8 @@ async function init(){
   document.getElementById('dateChip').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
   try {
     await loadAll();
+    // Ensure master user exists on Supabase (background)
+    ensureMasterUser().catch(e=>console.warn('ensureMasterUser bg error:',e));
     setSyncStatus('online');
     vbInit();
     document.getElementById('loadingOverlay').style.display='none';
@@ -4702,15 +4861,18 @@ function vbPrint(){
 
 // Start: check session first, show login if needed
 (async function(){
+  loadTheme();
   if(!checkSession()){
+    // Show login — but first try to ensure master exists (background, silent)
     try{
       const off = JSON.parse(localStorage.getItem('shopbill_offline')||'{}');
       const sn = off.settings?.shop_name;
       if(sn){ const el=document.getElementById('loginShopName'); if(el) el.textContent=sn; }
     }catch(e){}
+    // Background ma master user ensure karo (Supabase available hoy to)
+    ensureMasterUser().catch(()=>{});
   } else {
     applyRoleRestrictions();
-    loadTheme();
     await init();
   }
 })();
