@@ -291,6 +291,43 @@
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   *{scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+
+  /* FILE ATTACH */
+  .attach-btn {
+    width:32px;height:32px;border-radius:var(--radius-sm);
+    border:1px solid var(--border);background:var(--surface2);
+    color:var(--text-dim);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;flex-shrink:0;transition:all 0.2s;align-self:flex-end;
+  }
+  .attach-btn:hover{border-color:var(--accent);color:var(--accent);}
+  #fileInput{display:none;}
+
+  .file-preview {
+    display:flex;align-items:center;gap:6px;
+    padding:5px 10px;
+    background:rgba(217,119,6,0.08);
+    border:1px solid rgba(217,119,6,0.25);
+    border-radius:var(--radius-sm);
+    margin-bottom:6px;
+    font-size:10.5px;color:var(--accent2);
+    animation:up 0.2s ease;
+  }
+  .file-preview-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .file-preview-size{color:var(--text-muted);flex-shrink:0;font-size:9.5px;}
+  .file-remove{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:0 2px;transition:color 0.2s;flex-shrink:0;}
+  .file-remove:hover{color:var(--danger);}
+
+  /* user bubble file badge */
+  .file-badge {
+    display:inline-flex;align-items:center;gap:4px;
+    padding:3px 8px;
+    background:rgba(217,119,6,0.1);
+    border:1px solid rgba(217,119,6,0.2);
+    border-radius:100px;
+    font-size:9.5px;color:var(--accent2);
+    margin-bottom:6px;
+  }
 </style>
 </head>
 <body>
@@ -355,8 +392,11 @@
 
 <!-- INPUT -->
 <div class="input-area">
+  <div id="filePreviewArea"></div>
   <div class="input-box">
-    <textarea id="userInput" placeholder="Code puchho, bug moklo, project describe karo..." rows="1"
+    <button class="attach-btn" onclick="document.getElementById('fileInput').click()" title="File attach karo">📎</button>
+    <input type="file" id="fileInput" accept=".html,.js,.jsx,.ts,.tsx,.css,.py,.php,.json,.txt,.md,.sql,.yaml,.yml,.sh,.java,.cpp,.c,.cs" onchange="handleFileSelect(event)">
+    <textarea id="userInput" placeholder="Code puchho, file attach karo, bug moklo..." rows="1"
       onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
     <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
   </div>
@@ -373,6 +413,7 @@ let currentMode = 'free';
 let selectedModel = 'gemini-2.5-flash';
 let chatHistory = [];
 let isLoading = false;
+let attachedFile = null;
 
 const FREE_MODELS = [
   { id:'gemini-2.5-flash', label:'2.5 Flash ⚡' },
@@ -451,6 +492,41 @@ function saveClaudeKey() {
   else showToast('⚠ Enter valid key');
 }
 
+
+// ── FILE ATTACH ──
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 500000) { showToast('⚠ File too large (max 500KB)'); return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    attachedFile = { name: file.name, size: file.size, content: ev.target.result, ext };
+    showFilePreview();
+    showToast('📎 ' + file.name + ' attached!');
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function showFilePreview() {
+  const area = document.getElementById('filePreviewArea');
+  if (!attachedFile) { area.innerHTML = ''; return; }
+  const kb = (attachedFile.size / 1024).toFixed(1);
+  area.innerHTML = \`<div class="file-preview">
+    <span>📄</span>
+    <span class="file-preview-name">\${attachedFile.name}</span>
+    <span class="file-preview-size">\${kb} KB</span>
+    <button class="file-remove" onclick="removeFile()" title="Remove">✕</button>
+  </div>\`;
+}
+
+function removeFile() {
+  attachedFile = null;
+  document.getElementById('filePreviewArea').innerHTML = '';
+  showToast('File removed');
+}
+
 function quickPrompt(t) { document.getElementById('userInput').value=t; sendMessage(); }
 function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,130)+'px'; }
@@ -464,9 +540,21 @@ async function sendMessage() {
     if(!k||k.length<10){showToast('⚠ Claude key not set — open ⚙');openSettings();return;}
   }
   document.getElementById('welcome')?.remove();
-  addMsg('user', text);
-  chatHistory.push({role:'user',content:text});
+
+  // Build message with optional file
+  let fullContent = text;
+  let displayContent = text;
+  if (attachedFile) {
+    const lang = attachedFile.ext;
+    fullContent = (text ? text + '\n\n' : '') +
+      '**File: ' + attachedFile.name + '**\n```' + lang + '\n' + attachedFile.content + '\n```';
+    displayContent = text;
+  }
+
+  addMsg('user', displayContent, false, attachedFile ? attachedFile.name : null);
+  chatHistory.push({role:'user', content: fullContent});
   inp.value=''; inp.style.height='auto';
+  removeFile();
   const tid = addTyping();
   isLoading=true; document.getElementById('sendBtn').disabled=true;
   try {
@@ -514,7 +602,7 @@ async function callClaude() {
   const d=await r.json(); return d.content?.[0]?.text||'No response.';
 }
 
-function addMsg(role, content, isErr=false) {
+function addMsg(role, content, isErr=false, fileName=null) {
   const chat = document.getElementById('chat');
   const row = document.createElement('div');
   row.className='msg-row'+(role==='user'?' user':'');
@@ -526,7 +614,8 @@ function addMsg(role, content, isErr=false) {
   const body=document.createElement('div'); body.className='msg-body';
   const bub=document.createElement('div');
   bub.className='bubble '+(role==='user'?'u':'a')+(isErr?' err':'');
-  bub.innerHTML=md(content);
+  const fileBadge = (fileName && role==='user') ? `<div class="file-badge">📄 ${fileName}</div>` : '';
+  bub.innerHTML= fileBadge + md(content);
 
   bub.querySelectorAll('pre').forEach(pre=>{
     const btn=document.createElement('button');
