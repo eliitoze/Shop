@@ -468,6 +468,120 @@ header {
 }
 
 * { scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+
+/* ── LIGHT THEME ── */
+body.light {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --surface2: #f1f5f9;
+  --surface3: #e2e8f0;
+  --border: #cbd5e1;
+  --border2: #94a3b8;
+  --text: #0f172a;
+  --text-dim: #475569;
+  --text-muted: #94a3b8;
+  --accent-glow: rgba(249,115,22,0.10);
+}
+body.light .bubble.a { background: #fff; }
+body.light .bubble.u { background: #f1f5f9; }
+body.light .bubble pre { background: #f8fafc; border-color: #e2e8f0; }
+body.light header, body.light .input-area, body.light .status-bar { background: #fff; }
+body.light .settings-panel { background: #fff; }
+
+/* ── SEARCH OVERLAY ── */
+.search-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.85); z-index:110;
+  align-items:flex-start; justify-content:center;
+  padding:60px 14px 20px;
+  backdrop-filter:blur(6px);
+}
+.search-overlay.open { display:flex; animation:fadeIn 0.2s ease; }
+.search-panel {
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:var(--radius); width:100%; max-width:540px;
+  padding:18px; max-height:80dvh; display:flex; flex-direction:column; gap:12px;
+}
+.search-input-row { display:flex; gap:8px; align-items:center; }
+.search-field {
+  flex:1; background:var(--surface2); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:11px 14px;
+  color:var(--text); font-family:var(--font); font-size:14px; outline:none;
+  transition:border-color 0.2s;
+}
+.search-field:focus { border-color:var(--accent); }
+.search-results { overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px; }
+.search-result-item {
+  padding:11px 13px; border:1px solid var(--border);
+  border-radius:var(--radius-sm); cursor:pointer;
+  transition:all 0.18s; background:var(--surface2);
+}
+.search-result-item:hover { border-color:var(--accent); background:var(--accent-glow); }
+.search-result-role { font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+.search-result-text { font-size:13px; color:var(--text-dim); line-height:1.6; }
+.search-result-text mark { background:rgba(249,115,22,0.25); color:var(--accent2); border-radius:3px; padding:0 2px; }
+.search-empty { text-align:center; padding:24px; color:var(--text-muted); font-size:13px; }
+
+/* ── PIN / STAR ── */
+.pin-btn {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:5px 10px; background:var(--surface2); border:1px solid var(--border);
+  border-radius:100px; font-size:11px; font-weight:600;
+  color:var(--text-muted); cursor:pointer; transition:all 0.2s;
+  font-family:var(--font);
+}
+.pin-btn:hover { border-color:#f59e0b; color:#f59e0b; }
+.pin-btn.pinned { border-color:#f59e0b; color:#f59e0b; background:rgba(245,158,11,0.1); }
+
+/* ── STATS CHIP ── */
+.stats-chip {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px; background:rgba(139,92,246,0.08);
+  border:1px solid rgba(139,92,246,0.15); border-radius:100px;
+  font-size:10px; color:#a78bfa; font-family:var(--mono);
+}
+
+/* ── SESSION ITEM ── */
+.session-item {
+  display:flex; align-items:center; gap:0;
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  margin-bottom:8px; overflow:hidden; transition:border-color 0.2s;
+}
+.session-item:hover { border-color:var(--accent); }
+.session-main { flex:1; padding:12px 13px; cursor:pointer; }
+.session-title { font-size:13px; font-weight:600; color:var(--text); margin-bottom:3px; }
+.session-meta { font-size:11px; color:var(--text-muted); }
+.session-del {
+  padding:0 13px; background:transparent; border:none; border-left:1px solid var(--border);
+  color:var(--text-muted); cursor:pointer; font-size:15px; height:100%;
+  display:flex; align-items:center; transition:all 0.2s; flex-shrink:0; align-self:stretch;
+}
+.session-del:hover { color:var(--danger); background:rgba(239,68,68,0.07); }
+
+/* ── IMAGE PREVIEW ── */
+.img-preview-wrap {
+  margin-bottom:7px; position:relative; display:inline-block;
+}
+.img-preview-thumb {
+  max-height:80px; max-width:120px; border-radius:var(--radius-xs);
+  border:1px solid var(--border); object-fit:cover;
+}
+.img-remove {
+  position:absolute; top:-6px; right:-6px;
+  width:20px; height:20px; border-radius:50%;
+  background:var(--danger); border:none; color:#fff;
+  font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+
+/* ── PINNED SECTION ── */
+.pinned-banner {
+  background:rgba(245,158,11,0.07); border:1px solid rgba(245,158,11,0.2);
+  border-radius:var(--radius-sm); padding:10px 13px; margin-bottom:8px;
+  font-size:12px; color:#fcd34d; line-height:1.7;
+  display:flex; justify-content:space-between; align-items:flex-start; gap:8px;
+  animation:up 0.2s ease;
+}
+.unpin-btn { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:13px; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -482,6 +596,8 @@ header {
     <button class="mode-btn" id="btnClaude" onclick="switchMode('claude')">◆ Claude</button>
   </div>
   <div class="hdr-right">
+    <button class="icon-btn" onclick="openSearch()" title="Search chat">🔍</button>
+    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
     <button class="icon-btn" onclick="openHistory()" title="History">🕑</button>
     <button class="icon-btn" onclick="openSettings()" title="Settings">⚙</button>
     <button class="icon-btn" onclick="clearChat()" title="New chat">＋</button>
@@ -530,6 +646,19 @@ header {
   </div>
 </div>
 
+<!-- SEARCH -->
+<div class="search-overlay" id="searchOverlay" onclick="if(event.target===this)closeSearch()">
+  <div class="search-panel">
+    <div class="search-input-row">
+      <input class="search-field" id="searchField" placeholder="Chat ma search karo..." oninput="doSearch(this.value)" />
+      <button class="close-btn" style="width:36px;height:36px;flex-shrink:0;" onclick="closeSearch()">✕</button>
+    </div>
+    <div class="search-results" id="searchResults">
+      <div class="search-empty">🔍 Koi keyword type karo...</div>
+    </div>
+  </div>
+</div>
+
 <!-- CHAT -->
 <div id="chat">
   <div class="welcome" id="welcome">
@@ -558,10 +687,13 @@ header {
 
 <!-- INPUT -->
 <div class="input-area">
+  <div id="pinnedArea"></div>
   <div id="filePreviewArea"></div>
   <div class="input-box">
     <button class="attach-btn" onclick="document.getElementById('fileInput').click()" title="File attach karo">📎</button>
+    <button class="attach-btn" onclick="document.getElementById('imgInput').click()" title="Image attach karo" id="imgAttachBtn">🖼</button>
     <input type="file" id="fileInput" accept=".html,.js,.jsx,.ts,.tsx,.css,.py,.php,.json,.txt,.md,.sql,.yaml,.yml,.sh,.java,.cpp,.c,.cs,.go,.rs,.swift" onchange="handleFileSelect(event)">
+    <input type="file" id="imgInput" accept="image/*" onchange="handleImageSelect(event)">
     <textarea id="userInput" placeholder="Code puchho, file attach karo, bug moklo..." rows="1"
       onkeydown="handleKey(event)" oninput="handleInput(this)"></textarea>
     <span class="char-count" id="charCount"></span>
@@ -589,11 +721,13 @@ let selectedModel = 'gemini-2.5-flash';
 let chatHistory = [];
 let isLoading = false;
 let attachedFile = null;
+let attachedImage = null;  // NEW
 let lastAiContent = '';
 let isVoiceActive = false;
 let recognition = null;
 let allSessions = JSON.parse(localStorage.getItem('cm_sessions')||'[]');
 let charLimit = 4000;
+let pinnedMessages = JSON.parse(localStorage.getItem('cm_pins')||'[]'); // NEW
 
 const FREE_MODELS = [
   { id:'gemini-2.5-flash',        label:'Gemini 2.5 Flash ⚡' },
@@ -628,6 +762,10 @@ window.onload = () => {
   loadKey();
   loadCustomSystem();
   setupScrollFab();
+  loadTheme();
+  renderPinnedArea();
+  // Image attach only for Claude mode
+  document.getElementById('imgAttachBtn').style.display = 'none';
 };
 
 // ── MODEL BAR ──
@@ -669,6 +807,8 @@ function switchMode(mode) {
   currentMode = mode;
   document.getElementById('btnFree').className = 'mode-btn'+(mode==='free'?' active-free':'');
   document.getElementById('btnClaude').className = 'mode-btn'+(mode==='claude'?' active-claude':'');
+  // Image attach only available in Claude mode (supports vision)
+  document.getElementById('imgAttachBtn').style.display = mode==='claude'?'flex':'none';
   buildModelBar();
   showToast(mode==='free' ? '✦ Free mode (Puter.js)' : '◆ Claude API mode');
 }
@@ -706,11 +846,15 @@ function openHistory() {
   } else {
     list.innerHTML = allSessions.slice().reverse().map((s,ri) => {
       const i = allSessions.length-1-ri;
-      const preview = s.messages[0]?.content?.slice(0,60) || 'Empty';
+      const preview = s.messages[0]?.content?.slice(0,55) || 'Empty';
       const date = new Date(s.ts).toLocaleDateString('gu-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-      return `<div style="padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;transition:all 0.2s;" onclick="loadSession(${i})" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">${preview}...</div>
-        <div style="font-size:11px;color:var(--text-muted)">${date} · ${s.messages.length} msgs · ${s.mode}</div>
+      const msgCount = s.messages.length;
+      return `<div class="session-item">
+        <div class="session-main" onclick="loadSession(${i})">
+          <div class="session-title">${preview}...</div>
+          <div class="session-meta">${date} · ${msgCount} msgs · ${s.mode} · ${s.model?.split('-')[1]||''}</div>
+        </div>
+        <button class="session-del" onclick="deleteSession(${i},event)" title="Delete">🗑</button>
       </div>`;
     }).join('');
   }
@@ -748,9 +892,20 @@ function saveSession() {
   localStorage.setItem('cm_sessions', JSON.stringify(allSessions));
 }
 
+function deleteSession(i, e) {
+  e.stopPropagation();
+  allSessions.splice(i, 1);
+  localStorage.setItem('cm_sessions', JSON.stringify(allSessions));
+  openHistory(); // refresh list
+  showToast('🗑 Session deleted');
+}
+
 function clearAllHistory() {
   allSessions = [];
   localStorage.removeItem('cm_sessions');
+  localStorage.removeItem('cm_pins');
+  pinnedMessages = [];
+  renderPinnedArea();
   showToast('🗑 History cleared');
 }
 
@@ -854,10 +1009,14 @@ async function sendMessage() {
   }
 
   addMsg('user', displayContent, false, attachedFile ? attachedFile.name : null);
-  chatHistory.push({role:'user', content: fullContent});
+  // For history: if image, store as special marker (Claude API handles separately)
+  const historyEntry = { role:'user', content: fullContent };
+  if(attachedImage) historyEntry._image = attachedImage;
+  chatHistory.push(historyEntry);
   inp.value=''; inp.style.height='auto';
   document.getElementById('charCount').textContent='';
   removeFile();
+  removeImage();
 
   const tid = addTyping();
   isLoading=true;
@@ -903,6 +1062,21 @@ async function callPuter() {
 // ── CLAUDE API ──
 async function callClaude() {
   const key = localStorage.getItem('cm_claude');
+  // Build messages with image support
+  const messages = chatHistory.map(m => {
+    if(m._image) {
+      const b64 = m._image.dataUrl.split(',')[1];
+      const mtype = m._image.type || 'image/jpeg';
+      return {
+        role: 'user',
+        content: [
+          { type:'image', source:{type:'base64', media_type:mtype, data:b64} },
+          { type:'text', text: m.content || 'Aa image describe karo.' }
+        ]
+      };
+    }
+    return { role: m.role==='ai'?'assistant':'user', content: m.content };
+  });
   const r = await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{
@@ -915,10 +1089,7 @@ async function callClaude() {
       model: selectedModel,
       max_tokens: 4096,
       system: getSystem(),
-      messages: chatHistory.map(m=>({
-        role: m.role==='ai'?'assistant':'user',
-        content: m.content
-      }))
+      messages
     })
   });
   if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${r.status}`);}
@@ -1033,6 +1204,20 @@ function addMsg(role, content, isErr=false, fileName=null, silent=false) {
       rb.className='regen-btn'; rb.textContent='↺ Retry';
       rb.onclick=regenerateLast;
       actRow.appendChild(rb);
+
+      // Pin button
+      const pb=document.createElement('button');
+      const isAlreadyPinned = pinnedMessages.includes(content);
+      pb.className='pin-btn'+(isAlreadyPinned?' pinned':'');
+      pb.textContent=isAlreadyPinned?'★ Pinned':'☆ Pin';
+      pb.onclick=()=>pinMessage(content,pb);
+      actRow.appendChild(pb);
+
+      // Stats chip
+      const words = content.trim().split(/\s+/).length;
+      const sc=document.createElement('span');
+      sc.className='stats-chip'; sc.textContent=`${words}w`;
+      actRow.appendChild(sc);
     }
 
     body.appendChild(actRow);
@@ -1157,6 +1342,138 @@ function showToast(msg) {
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2400);
 }
+
+// ── THEME TOGGLE ──
+function loadTheme() {
+  if(localStorage.getItem('cm_theme')==='light') {
+    document.body.classList.add('light');
+    document.getElementById('themeBtn').textContent='☀️';
+  }
+}
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  localStorage.setItem('cm_theme', isLight?'light':'dark');
+  document.getElementById('themeBtn').textContent = isLight?'☀️':'🌙';
+  showToast(isLight?'☀ Light theme':'🌙 Dark theme');
+}
+
+// ── SEARCH ──
+function openSearch() {
+  document.getElementById('searchOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('searchField').focus(),100);
+}
+function closeSearch() {
+  document.getElementById('searchOverlay').classList.remove('open');
+  document.getElementById('searchField').value='';
+  document.getElementById('searchResults').innerHTML='<div class="search-empty">🔍 Koi keyword type karo...</div>';
+}
+function doSearch(q) {
+  const res = document.getElementById('searchResults');
+  if(!q.trim()) { res.innerHTML='<div class="search-empty">🔍 Koi keyword type karo...</div>'; return; }
+  // Search in all sessions + current chat
+  const all = [];
+  allSessions.forEach((s,si) => {
+    s.messages.forEach((m,mi) => {
+      if(m.content.toLowerCase().includes(q.toLowerCase())) {
+        all.push({session:si, msgIdx:mi, role:m.role, content:m.content, ts:s.ts});
+      }
+    });
+  });
+  // Also current session
+  chatHistory.forEach((m,mi) => {
+    if(m.content.toLowerCase().includes(q.toLowerCase())) {
+      all.push({session:-1, msgIdx:mi, role:m.role, content:m.content, ts:Date.now()});
+    }
+  });
+  if(!all.length) { res.innerHTML='<div class="search-empty">Koi result nathi 😕</div>'; return; }
+  const esc2=(s)=>s.replace(/</g,'&lt;');
+  const hi=(s,q)=>{
+    const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+    return esc2(s.slice(0,120)).replace(re,'<mark>$1</mark>');
+  };
+  res.innerHTML = all.slice(0,30).map(r=>`
+    <div class="search-result-item" onclick="jumpToResult(${r.session},${r.msgIdx})">
+      <div class="search-result-role">${r.role==='user'?'👤 You':'⚡ AI'} · ${new Date(r.ts).toLocaleDateString()}</div>
+      <div class="search-result-text">${hi(r.content,q)}...</div>
+    </div>`).join('');
+}
+function jumpToResult(sessionIdx, msgIdx) {
+  closeSearch();
+  if(sessionIdx>=0) {
+    loadSession(sessionIdx);
+    showToast('✓ Session loaded — message #'+(msgIdx+1));
+  } else {
+    // Current session — scroll to that message
+    const rows = document.getElementById('chat').querySelectorAll('.msg-row');
+    if(rows[msgIdx]) { rows[msgIdx].scrollIntoView({behavior:'smooth',block:'center'}); }
+    showToast('✓ Message found!');
+  }
+}
+
+// ── PIN / STAR ──
+function pinMessage(content, btnEl) {
+  const idx = pinnedMessages.indexOf(content);
+  if(idx>=0) {
+    pinnedMessages.splice(idx,1);
+    btnEl.textContent='☆ Pin';
+    btnEl.classList.remove('pinned');
+    showToast('📌 Unpinned');
+  } else {
+    pinnedMessages.push(content);
+    btnEl.textContent='★ Pinned';
+    btnEl.classList.add('pinned');
+    showToast('📌 Pinned!');
+  }
+  localStorage.setItem('cm_pins', JSON.stringify(pinnedMessages.slice(-10)));
+  renderPinnedArea();
+}
+
+function renderPinnedArea() {
+  const area = document.getElementById('pinnedArea');
+  if(!pinnedMessages.length) { area.innerHTML=''; return; }
+  const last = pinnedMessages[pinnedMessages.length-1];
+  area.innerHTML = `<div class="pinned-banner">
+    <span>📌 <strong>Pinned:</strong> ${last.slice(0,80)}${last.length>80?'...':''}</span>
+    <button class="unpin-btn" onclick="unpinLast()" title="Remove pin">✕</button>
+  </div>`;
+}
+function unpinLast() {
+  pinnedMessages.pop();
+  localStorage.setItem('cm_pins', JSON.stringify(pinnedMessages));
+  renderPinnedArea();
+  showToast('📌 Unpinned');
+}
+
+// ── IMAGE ATTACH ──
+function handleImageSelect(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  if(file.size > 4000000) { showToast('⚠ Image too large (max 4MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    attachedImage = { name: file.name, dataUrl: ev.target.result, type: file.type };
+    showImagePreview();
+    showToast('🖼 Image attached!');
+  };
+  reader.readAsDataURL(file);
+  e.target.value='';
+}
+function showImagePreview() {
+  const area = document.getElementById('filePreviewArea');
+  if(!attachedImage) return;
+  const existing = area.querySelector('.img-preview-wrap');
+  if(existing) existing.remove();
+  const wrap = document.createElement('div');
+  wrap.className='img-preview-wrap';
+  wrap.innerHTML=`<img src="${attachedImage.dataUrl}" class="img-preview-thumb" /><button class="img-remove" onclick="removeImage()">✕</button>`;
+  area.prepend(wrap);
+}
+function removeImage() {
+  attachedImage=null;
+  document.querySelector('.img-preview-wrap')?.remove();
+  showToast('Image removed');
+}
+
 </script>
 </body>
 </html>
