@@ -1,113 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Button, TextInput, Alert, ActivityIndicator, Image, ScrollView } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-export default function Jewel360() {
-  const [screen, setScreen] = useState('home');
-  const [key1, setKey1] = useState('');
-  const [key2, setKey2] = useState('');
-  const [image, setImage] = useState(null);
-  const [status, setStatus] = useState('');
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    loadKeys();
-  }, []);
-
-  const loadKeys = async () => {
-    setKey1(await AsyncStorage.getItem('key1') || '');
-    setKey2(await AsyncStorage.getItem('key2') || '');
-  };
-
-  const saveKeys = async () => {
-    if (!key1) return Alert.alert('Error', 'Key 1 નાખો');
-    await AsyncStorage.setItem('key1', key1.trim());
-    await AsyncStorage.setItem('key2', key2.trim());
-    Alert.alert('✅', 'Key સેવ થઈ ગઈ');
-    setScreen('home');
-  };
-
-  const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({ quality: 1 });
-    if (!result.canceled) setImage(result.assets[0].uri);
-  };
-
-  const removeBG = async () => {
-    if (!image) return Alert.alert('ફોટો સિલેક્ટ કરો');
-    if (!key1) return Alert.alert('Settings માં Key 1 નાખો');
-
-    setLoading(true);
-    setResult(null);
-    const keys = [key1, key2].filter(k => k);
-
-    for (let i = 0; i < keys.length; i++) {
-      try {
-        setStatus(`Key ${i + 1} ટ્રાય કરી રહ્યા છીએ...`);
-        const formData = new FormData();
-        formData.append('image_file', { uri: image, name: 'photo.jpg', type: 'image/jpeg' });
-        formData.append('bg_color', '000000');
-        formData.append('format', 'png');
-
-        const res = await fetch('https://sdk.photoroom.com/v1/segment', {
-          method: 'POST',
-          headers: { 'x-api-key': keys[i] },
-          body: formData,
-        });
-
-        if (res.status === 402 || res.status === 429) continue;
-        if (!res.ok) throw new Error('API Error');
-
-        const blob = await res.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setResult(reader.result);
-          setStatus('✅ બ્લેક BG ફોટો તૈયાર!');
-        };
-        reader.readAsDataURL(blob);
-        setLoading(false);
-        return;
-
-      } catch (e) {
-        if (i === keys.length - 1) {
-          setStatus('❌ બધી Key ફેઇલ');
-          setLoading(false);
-        }
-      }
-    }
-  };
-
-  if (screen === 'settings') {
-    return (
-      <ScrollView style={{ flex: 1, padding: 20, backgroundColor: '#111' }}>
-        <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 20, color: 'white' }}>⚙️ API Settings</Text>
-        <Text style={{ color: 'white', marginBottom: 5 }}>Key 1</Text>
-        <TextInput value={key1} onChangeText={setKey1} secureTextEntry placeholder="sk_live_xxx"
-          style={{ borderWidth: 1, borderColor: '#444', padding: 10, marginBottom: 15, color: 'white', borderRadius: 5 }} />
-        <Text style={{ color: 'white', marginBottom: 5 }}>Key 2 - Optional</Text>
-        <TextInput value={key2} onChangeText={setKey2} secureTextEntry placeholder="sk_live_yyy"
-          style={{ borderWidth: 1, borderColor: '#444', padding: 10, marginBottom: 15, color: 'white', borderRadius: 5 }} />
-        <Button title="સેવ કરો" onPress={saveKeys} />
-        <View style={{ marginTop: 10 }} />
-        <Button title="Back" onPress={() => setScreen('home')} />
-      </ScrollView>
-    );
-  }
-
-  return (
-    <ScrollView style={{ flex: 1, padding: 20, backgroundColor: '#111' }}>
-      <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20, color: 'white', textAlign: 'center' }}>💎 Jewel360</Text>
-      <Button title="⚙️ Settings" onPress={() => setScreen('settings')} />
-      <View style={{ marginVertical: 15 }} />
-      <Button title="📸 ફોટો સિલેક્ટ કરો" onPress={pickImage} />
-      {image && <Image source={{ uri: image }} style={{ width: '100%', height: 250, marginVertical: 15, borderRadius: 8 }} />}
-      <Button title="🚀 બ્લેક BG બનાવો" onPress={removeBG} disabled={!image || loading} />
-
-      {loading && <ActivityIndicator size="large" style={{ marginVertical: 20 }} />}
-      {status? <Text style={{ color: 'white', textAlign: 'center', marginVertical: 15 }}>{status}</Text> : null}
-      {result && <Image source={{ uri: result }} style={{ width: '100%', height: 300, borderRadius: 8 }} />}
-    </ScrollView>
-  );
+<div style="max-width:500px;margin:auto;padding:20px;background:#111;color:white;font-family:sans-serif">
+<h2 style="text-align:center">💎 Jewel360 - Fixed</h2>
+<input type="password" id="k1" placeholder="Key 1 - sk_live_xxx" style="width:100%;padding:10px;margin:10px 0;background:#333;color:white;border:none;border-radius:5px">
+<input type="password" id="k2" placeholder="Key 2 - Optional" style="width:100%;padding:10px;margin:10px 0;background:#333;color:white;border:none;border-radius:5px">
+<button onclick="localStorage.setItem('k1',k1.value);localStorage.setItem('k2',k2.value);alert('Saved')" style="width:100%;padding:10px;background:#2563eb;color:white;border:none;border-radius:5px;margin-bottom:20px">Save Keys</button>
+<input type="file" id="img" accept="image/*" style="width:100%;margin-bottom:10px;color:white">
+<button onclick="go()" style="width:100%;padding:15px;background:#16a34a;color:white;border:none;border-radius:5px;font-weight:bold">Generate Black BG</button>
+<div id="out" style="margin-top:20px"></div>
+</div>
+<script>
+k1.value=localStorage.getItem('k1')||'';k2.value=localStorage.getItem('k2')||'';
+async function go(){
+const f=img.files[0];if(!f)return alert('Photo select karo');
+const key=localStorage.getItem('k1');if(!key)return alert('Key 1 nakho');
+let d=new FormData();d.append('image_file',f);d.append('bg_color','000000');d.append('format','png');
+out.innerHTML='<p style="text-align:center">Loading... 10-15 sec lagse</p>';
+try{
+// CORS પ્રોક્સી વાપરીએ છીએ
+let url='https://corsproxy.io/?'+encodeURIComponent('https://sdk.photoroom.com/v1/segment');
+let r=await fetch(url,{method:'POST',headers:{'x-api-key':key},body:d});
+if(r.status===402||r.status===429){
+  const k2=localStorage.getItem('k2');if(!k2)throw Error('Key 1 limit puri, Key 2 nakho');
+  out.innerHTML='<p style="text-align:center">Key 1 puri, Key 2 try karu chu...</p>';
+  r=await fetch(url,{method:'POST',headers:{'x-api-key':k2},body:d})
 }
+if(!r.ok)throw Error('API Error '+r.status);
+let b=await r.blob();let u=URL.createObjectURL(b);
+out.innerHTML=`<img src="${u}" style="width:100%;border-radius:8px;margin-bottom:10px"><a href="${u}" download="jewel_black.png" style="display:block;padding:12px;background:#2563eb;color:white;text-align:center;border-radius:5px;text-decoration:none;font-weight:bold">⬇️ Download Photo</a>`;
+}catch(e){out.innerHTML='<p style="color:#f87171">Error: '+e.message+'<br><br>Check karo: 1) Key sahi chhe? 2) Internet chhe? 3) Credits baki chhe?</p>'}
+}
+</script>
