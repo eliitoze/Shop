@@ -1,31 +1,46 @@
-<div style="max-width:500px;margin:auto;padding:20px;background:#111;color:white;font-family:sans-serif">
-<h2 style="text-align:center">💎 Jewel360 - Fixed</h2>
-<input type="password" id="k1" placeholder="Key 1 - sk_live_xxx" style="width:100%;padding:10px;margin:10px 0;background:#333;color:white;border:none;border-radius:5px">
-<input type="password" id="k2" placeholder="Key 2 - Optional" style="width:100%;padding:10px;margin:10px 0;background:#333;color:white;border:none;border-radius:5px">
-<button onclick="localStorage.setItem('k1',k1.value);localStorage.setItem('k2',k2.value);alert('Saved')" style="width:100%;padding:10px;background:#2563eb;color:white;border:none;border-radius:5px;margin-bottom:20px">Save Keys</button>
-<input type="file" id="img" accept="image/*" style="width:100%;margin-bottom:10px;color:white">
-<button onclick="go()" style="width:100%;padding:15px;background:#16a34a;color:white;border:none;border-radius:5px;font-weight:bold">Generate Black BG</button>
-<div id="out" style="margin-top:20px"></div>
-</div>
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jewel360</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-4">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6 text-center">💎 Jewel360 Pro</h1>
+    <div class="bg-gray-800 p-6 rounded-lg mb-6">
+      <h2 class="text-xl font-semibold mb-4">⚙️ API Keys</h2>
+      <input type="password" id="key1" placeholder="Key 1 - sk_live_xxx" class="w-full p-3 bg-gray-700 rounded mb-3 text-white">
+      <input type="password" id="key2" placeholder="Key 2 - Optional" class="w-full p-3 bg-gray-700 rounded mb-3 text-white">
+      <button onclick="localStorage.setItem('k1',key1.value);localStorage.setItem('k2',key2.value);alert('✅ Saved')" class="bg-blue-600 px-6 py-2 rounded w-full">Save Keys</button>
+    </div>
+    <div class="bg-gray-800 p-6 rounded-lg">
+      <input type="file" id="img" accept="image/*" class="mb-4 text-white w-full">
+      <button onclick="go()" class="w-full bg-green-600 px-6 py-3 rounded font-bold">Generate Black BG</button>
+      <div id="out" class="mt-4"></div>
+    </div>
+  </div>
 <script>
-k1.value=localStorage.getItem('k1')||'';k2.value=localStorage.getItem('k2')||'';
+key1.value=localStorage.getItem('k1')||'';key2.value=localStorage.getItem('k2')||'';
 async function go(){
 const f=img.files[0];if(!f)return alert('Photo select karo');
-const key=localStorage.getItem('k1');if(!key)return alert('Key 1 nakho');
+const key=localStorage.getItem('k1');if(!key)return alert('Key 1 nakho Settings ma');
 let d=new FormData();d.append('image_file',f);d.append('bg_color','000000');d.append('format','png');
-out.innerHTML='<p style="text-align:center">Loading... 10-15 sec lagse</p>';
+out.innerHTML='<p class="text-center text-yellow-400">⏳ Loading... 10-15 sec</p>';
 try{
-// CORS પ્રોક્સી વાપરીએ છીએ
 let url='https://corsproxy.io/?'+encodeURIComponent('https://sdk.photoroom.com/v1/segment');
 let r=await fetch(url,{method:'POST',headers:{'x-api-key':key},body:d});
 if(r.status===402||r.status===429){
   const k2=localStorage.getItem('k2');if(!k2)throw Error('Key 1 limit puri, Key 2 nakho');
-  out.innerHTML='<p style="text-align:center">Key 1 puri, Key 2 try karu chu...</p>';
+  out.innerHTML='<p class="text-center text-blue-400">Key 1 puri, Key 2 try karu chu...</p>';
   r=await fetch(url,{method:'POST',headers:{'x-api-key':k2},body:d})
 }
-if(!r.ok)throw Error('API Error '+r.status);
+if(!r.ok)throw Error('API Error '+r.status+' - Key check karo');
 let b=await r.blob();let u=URL.createObjectURL(b);
-out.innerHTML=`<img src="${u}" style="width:100%;border-radius:8px;margin-bottom:10px"><a href="${u}" download="jewel_black.png" style="display:block;padding:12px;background:#2563eb;color:white;text-align:center;border-radius:5px;text-decoration:none;font-weight:bold">⬇️ Download Photo</a>`;
-}catch(e){out.innerHTML='<p style="color:#f87171">Error: '+e.message+'<br><br>Check karo: 1) Key sahi chhe? 2) Internet chhe? 3) Credits baki chhe?</p>'}
+out.innerHTML=`<img src="${u}" class="w-full rounded mb-3"><a href="${u}" download="jewel_black.png" class="block bg-blue-600 p-3 rounded text-center font-bold">⬇️ Download Photo</a>`;
+}catch(e){out.innerHTML='<p class="text-red-500">❌ Error: '+e.message+'<br><br>Check: 1) Key sahi chhe? 2) Internet chhe? 3) Credits baki chhe?</p>'}
 }
 </script>
+</body>
+</html>
